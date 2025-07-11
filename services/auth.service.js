@@ -12,21 +12,21 @@ const { sendMail } = require("../utils/helpers/email.util");
 class AuthService {
   async loginService(req, res) {
     try {
-      const { mobileNumber, password } = req.body;
+      const { email, password } = req.body;
 
-      if (!mobileNumber || !password) {
-        log.error("Error from [User SERVICE]: Missing mobile number or password");
+      if (!email || !password) {
+        log.error("Error from [User SERVICE]: Missing email or password");
         return res.status(400).json({
-          message: "Mobile number and password are required",
+          message: "Email and password are required",
           status: "failed",
           code: 400,
           data: null,
         });
       }
 
-      const user = await userDao.getUserByMobileNumber(mobileNumber);
+      const user = await userDao.getUserByEmail(email);
 
-      if (!user || !user.data) {
+      if (!user) {
         return res.status(404).json({
           message: "Account does not exist",
           status: "not_found",
@@ -36,7 +36,7 @@ class AuthService {
       }
 
       // Temporary password check (to be replaced with proper hash check later)
-      if (user.data.password !== password) {
+      if (user.password !== password) {
         log.error("Error from [Auth SERVICE]: Invalid password");
         return res.status(401).json({
           message: "Invalid password",
@@ -48,16 +48,16 @@ class AuthService {
 
       // Successful login
       log.info("[Auth SERVICE]: User verified successfully");
-      const token = createToken(user.data._id);
+      const token = createToken(user._id);
       return res.status(200).json({
         message: "User logged in successfully",
         status: "success",
         code: 200,
         data: {
           user: {
-            profilePic: user.data.profilePic,
-            fullName: user.data.fulleName,
-            userId: user.data._id // I can take mobile number but CRUD operation regarding user will be slow because, by default indexing is created for _id field hence  if Sir guide I'll change
+            profilePic: user.profilePic,
+            fullName: user.fulleName,
+            userId: user._id,
           },
           token,
         },

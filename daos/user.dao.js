@@ -47,7 +47,9 @@ class UserDao {
       };
     }
   }
-
+  async getUserByEmail(email) {
+    return await User.findOne({ email });
+  }
   async getUser(id) {
     try {
       const userExist = await User.findById(id);
