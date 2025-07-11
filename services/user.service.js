@@ -8,11 +8,11 @@ class UserService {
         try {
             const user = await userDAO.getUser(req.userId);
 
-            if (!user) {
-                return res.status(404).json({
-                    message: "User not found",
-                    status: "fail",
-                    code: 404,
+            if (!user.data) {
+                return res.status(user.code || 404).json({
+                    message: user.message || "User not found",
+                    status: user.status || "fail",
+                    code: user.code || 404,
                     data: null,
                 });
             }
@@ -21,7 +21,7 @@ class UserService {
                 message: "User details fetched successfully",
                 status: "success",
                 code: 200,
-                data: user,
+                data: user.data,
             });
         } catch (error) {
             log.error("[User SERVICE]: getAllDetailsService failed", error);
@@ -34,9 +34,6 @@ class UserService {
         }
     }
     async updateUserService(req, res) {
-        // Here Make Sure front-end disabled the mobile number edit feature,
-        // because in our app it act like primary or unique attribute to find
-        // which should be unique
         try {
             const userId = req.userId;
             if (!userId) {
@@ -50,9 +47,11 @@ class UserService {
             const { fullName, email } = req.body;
             const file = req.file;
 
+            // Check if email already exists (excluding current user)
             if (email) {
-                const emailExists = await userDAO.isEmailExists(email.trim(), userId);
-                if (emailExists) {
+                const normalizedEmail = email.toLowerCase().trim();
+                const emailExists = await userDAO.isEmailExists(normalizedEmail, userId);
+                if (emailExists?.data) {
                     return res.status(409).json({
                         message: "Email already exists. Update aborted.",
                         status: "failed",
@@ -61,12 +60,15 @@ class UserService {
                 }
             }
 
+            // Prepare update data
             const updateData = {};
-            if (fullName) updateData.fullName = fullName.trim();
-            if (email) updateData.email = email.trim();
+            if (name) updateData.name = name.trim();
+            if (email) updateData.email = email.toLowerCase().trim();
 
+            let uploadedKey = null;
+
+            // If file exists, upload to S3 and update profilePic
             if (file) {
-                // S3 Upload only if file exists and email check passed
                 const s3UploadParams = {
                     Bucket: process.env.AWS_BUCKET_NAME,
                     Key: `profilePics/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`,
@@ -83,16 +85,45 @@ class UserService {
                 });
 
                 updateData.profilePic = s3UploadResult.Location;
+                uploadedKey = s3UploadParams.Key; // store the key in case we need to delete it
             }
 
+            // Update user in DB
             const updatedUser = await userDAO.updateUserProfile(userId, updateData);
+
+            if (!updatedUser.data) {
+                // Cleanup uploaded S3 file if DB update fails
+                if (uploadedKey) {
+                    s3.deleteObject(
+                        {
+                            Bucket: process.env.AWS_BUCKET_NAME,
+                            Key: uploadedKey,
+                        },
+                        (err, data) => {
+                            if (err) {
+                                log.error("Failed to cleanup S3 image:", err);
+                            } else {
+                                log.info("Orphan S3 image deleted after DB failure");
+                            }
+                        }
+                    );
+                }
+
+                return res.status(updatedUser.code || 500).json({
+                    message: updatedUser.message || "User update failed",
+                    status: updatedUser.status || "error",
+                    code: updatedUser.code || 500,
+                    data: null,
+                });
+            }
 
             return res.status(200).json({
                 message: "User profile updated successfully",
-                data: updatedUser,
+                data: updatedUser.data,
                 status: "success",
                 code: 200,
             });
+
         } catch (error) {
             log.error("Error in [updateUserService]:", error);
             return res.status(500).json({
