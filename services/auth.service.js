@@ -2,41 +2,56 @@ const userDao = require("../daos/user.dao");
 const { compareItems, hashItem } = require("../utils/helpers/bcrypt.util");
 const log = require("../configs/logger.config");
 const { createToken } = require("../utils/helpers/tokenHelper.util");
-const { validateEmail } = require("../utils/helpers/validator.util");
+const { validateEmail, validateIndianMobileNumber } = require("../utils/helpers/validator.util");
 const {
   removeNullUndefined,
   randomString,
 } = require("../utils/helpers/common.util");
 const { sendMail } = require("../utils/helpers/email.util");
+const { FIELD_AGENT } = require("../utils/constants/user.constant");
 
 class AuthService {
   async loginService(req, res) {
     try {
-      const { mobileNumber, password } = req.body;
+      const { email, password } = req.body;
 
-      if (!mobileNumber || !password) {
-        log.error("Error from [User SERVICE]: Missing mobile number or password");
+      const normalizedEmail = email?.toLowerCase().trim();
+
+      if (!normalizedEmail || !password) {
+        log.error("Error from [Auth SERVICE]: Missing email or password");
         return res.status(400).json({
-          message: "Mobile number and password are required",
+          message: "Email and password are required",
           status: "failed",
           code: 400,
           data: null,
         });
       }
 
-      const user = await userDao.getUserByMobileNumber(mobileNumber);
-
-      if (!user || !user.data) {
-        return res.status(404).json({
-          message: "Account does not exist",
-          status: "not_found",
-          code: 404,
+      if (!validateEmail(normalizedEmail)) {
+        log.error("[Auth SERVICE]: Invalid email format");
+        return res.status(400).json({
+          message: "Invalid email format",
+          status: "failed",
+          code: 400,
           data: null,
         });
       }
 
-      // Temporary password check (to be replaced with proper hash check later)
-      if (user.data.password !== password) {
+      const userResponse = await userDao.getUserByEmail(normalizedEmail);
+
+      if (!userResponse.data) {
+        return res.status(userResponse.code || 404).json({
+          message: userResponse.message || "Account does not exist",
+          status: userResponse.status || "not_found",
+          code: userResponse.code || 404,
+          data: null,
+        });
+      }
+
+      const user = userResponse.data;
+
+      const isPasswordMatch = await compareItems(password, user.password);
+      if (!isPasswordMatch) {
         log.error("Error from [Auth SERVICE]: Invalid password");
         return res.status(401).json({
           message: "Invalid password",
@@ -46,22 +61,25 @@ class AuthService {
         });
       }
 
-      // Successful login
       log.info("[Auth SERVICE]: User verified successfully");
-      const token = createToken(user.data._id);
+      const token = createToken(user._id);
+
       return res.status(200).json({
         message: "User logged in successfully",
         status: "success",
         code: 200,
         data: {
           user: {
-            profilePic: user.data.profilePic,
-            fullName: user.data.fulleName,
-            userId: user.data._id // I can take mobile number but CRUD operation regarding user will be slow because, by default indexing is created for _id field hence  if Sir guide I'll change
+            userId: user._id,
+            profilePic: user.profilePic,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role,
           },
           token,
         },
       });
+
     } catch (error) {
       log.error("Error from [Auth SERVICE]:", error);
       return res.status(500).json({
@@ -72,39 +90,59 @@ class AuthService {
       });
     }
   }
-  // below I created for testing consistency 
+
   async signupService(req, res) {
     try {
-      const { profilePic, fullName, email, mobileNumber, password } = req.body;
+      const { fullName, email, mobileNumber, password, role } = req.body;
 
-      // Basic validation
-      if (!mobileNumber || !password) {
-        log.error("[User SERVICE]: Missing required fields - mobileNumber or password");
+      // Normalize email
+      const normalizedEmail = email?.toLowerCase().trim();
+
+      if (!normalizedEmail || !password) {
+        log.error("[User SERVICE]: Missing required fields - email or password");
         return res.status(400).json({
-          message: "Mobile number and password are required",
+          message: "Email and password are required",
           status: "failed",
           code: 400,
           data: null,
         });
       }
 
-      // Check if user with the same mobile number already exists
-      const existingUserByMobile = await userDao.getUserByMobileNumber(mobileNumber);
-      if (existingUserByMobile?.data) {
+      if (!validateEmail(normalizedEmail)) {
+        log.error("[Auth SERVICE]: Invalid email format");
+        return res.status(400).json({
+          message: "Invalid email format",
+          status: "failed",
+          code: 400,
+          data: null,
+        });
+      }
+
+      const emailExists = await userDao.isEmailExists(normalizedEmail);
+      if (emailExists?.data) {
         return res.status(409).json({
-          message: "User with this mobile number already exists",
+          message: "User with this email already exists",
           status: "failed",
           code: 409,
           data: null,
         });
       }
 
-      // Check if email already exists
-      if (email) {
-        const emailExists = await userDao.isEmailExists(email);
-        if (emailExists?.data) {
+      if (mobileNumber) {
+        if (!validateIndianMobileNumber(mobileNumber)) {
+          log.error("[Auth SERVICE]: Invalid mobile number format");
+          return res.status(400).json({
+            message: "Invalid mobile number format",
+            status: "failed",
+            code: 400,
+            data: null,
+          });
+        }
+
+        const mobileExists = await userDao.getUserByMobileNumber(mobileNumber);
+        if (mobileExists?.data) {
           return res.status(409).json({
-            message: "User with this email already exists",
+            message: "User with this mobile number already exists",
             status: "failed",
             code: 409,
             data: null,
@@ -112,20 +150,21 @@ class AuthService {
         }
       }
 
-      // Create and save the user
+      const hashedPassword = await hashItem(password);
+
       const user = await userDao.createUser({
-        profilePic,
         fullName,
-        email,
+        email: normalizedEmail,
         mobileNumber,
-        password,
+        password: hashedPassword,
+        role: role || FIELD_AGENT
       });
 
-      if (!user || !user.data) {
-        return res.status(500).json({
-          message: "User creation failed",
-          status: "error",
-          code: 500,
+      if (!user.data) {
+        return res.status(user.code || 500).json({
+          message: user.message || "User creation failed",
+          status: user.status || "error",
+          code: user.code || 500,
           data: null,
         });
       }
@@ -143,6 +182,7 @@ class AuthService {
             fullName: user.data.fullName,
             email: user.data.email,
             mobileNumber: user.data.mobileNumber,
+            role: user.data.role,
           },
         },
       });
