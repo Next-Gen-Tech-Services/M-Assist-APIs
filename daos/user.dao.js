@@ -3,138 +3,104 @@ const getNextSequenceValue = require("../utils/helpers/counter.util");
 const log = require("../configs/logger.config");
 const { hashItem } = require("../utils/helpers/bcrypt.util");
 class UserDao {
-  async getUserById(id) {
-    try {
-      const user = await User.findOne({ userId: id });
-      if (!user) {
-        return {
-          message: "User not found",
-          status: "failed",
-          data: null,
-          code: 201,
-        };
-      } else {
-        return {
-          message: "User found",
-          status: "success",
-          data: user,
-          code: 200,
-        };
-      }
-    } catch (error) {
-      log.error("Error from [USER DAO]: ", error);
-      throw error;
-    }
-  }
-
-  async getUserByEmail(email) {
-    try {
-      const userExist = await User.findOne({
-        email: email,
-      });
-      if (userExist != null) {
-        return {
-          message: "Successfully",
-          status: "success",
-          data: userExist,
-          code: 200,
-        };
-      } else {
-        return {
-          message: "User not found",
-          status: "failed",
-          data: null,
-          code: 201,
-        };
-      }
-    } catch (error) {
-      log.error("Error from [USER DAO]: ", error);
-      throw error;
-    }
-  }
-
-  async getUserByResetToken(resetToken) {
-    try {
-      const userExist = await User.findOne({
-        resetToken,
-      });
-      if (userExist != null) {
-        return {
-          message: "Successfully",
-          status: "success",
-          data: userExist,
-          code: 200,
-        };
-      } else {
-        return {
-          message: "User not found",
-          status: "failed",
-          data: null,
-          code: 201,
-        };
-      }
-    } catch (error) {
-      log.error("Error from [USER DAO]: ", error);
-      throw error;
-    }
-  }
-
   async createUser(data) {
     try {
-      //create user
-      const userId = "User_" + (await getNextSequenceValue("user"));
-      data.userId = userId;
-      let result;
-      const user = new User(data);
-      result = await user.save();
+      let user = new User(data);
+      user = await user.save();
+      return user;
+    } catch (error) {
+      log.error("Error from [USER DAO]: ", error);
+      return {
+        message: "Internal server error",
+        status: "error",
+        data: null,
+        code: 500, // Internal Server Error
+      };
+    }
+  }
+  async getUserByMobileNumber(mobileNumber) {
+    try {
+      const userExist = await User.findOne({ mobileNumber });
 
-      log.info("User saved");
-      if (!result) {
-        log.error("Error from [USER DAO]: User creation error");
-        throw error;
+      if (userExist) {
+        return {
+          message: "User found successfully",
+          status: "success",
+          data: userExist,
+          code: 200, // OK
+        };
       } else {
         return {
-          message: "User created successfully",
-          data: result,
-          status: "success",
-          code: 200,
+          message: "User not found",
+          status: "fail",
+          data: null,
+          code: 404, // Not Found
         };
       }
     } catch (error) {
       log.error("Error from [USER DAO]: ", error);
-      throw error;
+      return {
+        message: "Internal server error",
+        status: "error",
+        data: null,
+        code: 500, // Internal Server Error
+      };
     }
   }
 
-  async updateUser(data) {
+  async getUser(id) {
     try {
-      if (data?.password) {
-        data.password = await hashItem(data.password);
-      }
-      let result;
-      result = await User.findOneAndUpdate({ email: data.email }, data, {
-        new: true,
-      });
+      const userExist = await User.findById(id);
 
-      log.info("User saved");
-      if (!result) {
-        log.error("Error from [USER DAO]: User updation error");
+      if (userExist) {
         return {
-          message: "Something went wrong",
-          data: null,
-          status: "fail",
-          code: 201,
+          message: "User found successfully",
+          status: "success",
+          data: userExist,
+          code: 200, // OK
         };
       } else {
         return {
-          message: "User updated successfully",
-          data: result,
-          status: "success",
-          code: 200,
+          message: "User not found",
+          status: "fail",
+          data: null,
+          code: 404, // Not Found
         };
       }
     } catch (error) {
       log.error("Error from [USER DAO]: ", error);
+      return {
+        message: "Internal server error",
+        status: "error",
+        data: null,
+        code: 500, // Internal Server Error
+      };
+    }
+  }
+  async updateUserProfile(userId, updateFields) {
+    try {
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateFields },
+        { new: true }
+      );
+      return updatedUser;
+    } catch (error) {
+      log.error("Error from [UserDAO - updateUserProfile]:", error);
+      throw error;
+    }
+  }
+  async isEmailExists(email, userId = null) {
+    try {
+      const query = { email };
+      if (userId) {
+        query._id = { $ne: userId }; // Exclude current user if ID is given
+      }
+
+      const user = await User.findOne(query);
+      return !!user;
+    } catch (error) {
+      log.error("Error in [isEmailExists]:", error);
       throw error;
     }
   }

@@ -1,3 +1,19 @@
+// code to store file into memory and then our services will upload the file
+const multer = require("multer");
+
+const uploadFile = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // Optional: 10MB limit
+  },
+});
+
+module.exports = {
+  uploadFile,
+};
+
+// code to directly upload file to s3 bucket
+/*
 const multer = require("multer");
 const multerS3 = require("multer-s3");
 const { s3 } = require("../../configs/aws.config");
@@ -22,3 +38,5 @@ const uploadFile = multer({
 module.exports = {
   uploadFile,
 };
+
+*/
