@@ -6,17 +6,14 @@ class ImageDAO {
   async uploadImageDetails(data) {
     try {
       const newImage = new Image({
-        name: data.name,
-        location: data.location,
-        captureDateTime: data.captureDateTime, // new date field
-        status: data.status,
-        metricSummary: data.metricSummary,
+        location: data.location,            // GeoJSON Point
+        captureDateTime: data.captureDateTime,
         imageUrl: data.imageUrl,
-        belongsTo: data.userId, // from req.user._id
+        belongsTo: data.userId,
       });
 
       const result = await newImage.save();
-      return result; // or return relevant fields if needed
+      return result;
     } catch (error) {
       log.error("Error from [ImageDAO]:", error);
       throw error;

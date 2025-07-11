@@ -23,26 +23,12 @@ class ImageService {
                 });
             }
 
-            const {
-                location,
-                captureDateTime // 👈 directly from frontend
-            } = req.body;
-
+            const { location, captureDateTime } = req.body;
             const file = req.file;
 
-            // console.log("Incoming upload request:", {
-            //     name,
-            //     location,
-            //     captureDateTime,
-            //     metricSummary,
-            //     status,
-            //     file: file ? file.originalname : "No file",
-            // });
-
             if (!location || !captureDateTime || !file) {
-                log.error("Missing required fields or image file.");
                 return res.status(400).json({
-                    message: "Invalid Request: Missing required fields or image file.",
+                    message: "Missing required fields or image file.",
                     status: "failed",
                     data: null,
                     code: 400,
@@ -59,9 +45,29 @@ class ImageService {
                 });
             }
 
+            // Parse location
+            const [lng, lat] = location.split(",").map(Number);
+            if (isNaN(lng) || isNaN(lat)) {
+                return res.status(400).json({
+                    message: "Invalid location coordinates.",
+                    status: "failed",
+                    data: null,
+                    code: 400,
+                });
+            }
+
+            const geoLocation = {
+                type: "Point",
+                coordinates: [lng, lat],
+            };
+
+            // Prepare upload key (used for deletion too)
+            const s3Key = `images/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
+
+            // Upload to S3
             const s3UploadParams = {
                 Bucket: process.env.AWS_BUCKET_NAME,
-                Key: `images/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`,
+                Key: s3Key,
                 Body: file.buffer,
                 ContentType: file.mimetype,
                 ACL: "public-read",
@@ -76,19 +82,38 @@ class ImageService {
 
             const imageUrl = s3UploadResult.Location;
 
-            const imageDoc = await imageDAO.uploadImageDetails({
-                location: location.trim(),
-                captureDateTime: parsedDate,
-                imageUrl,
-                userId,
-            });
+            // Try to save image doc
+            try {
+                const imageDoc = await imageDAO.uploadImageDetails({
+                    location: geoLocation,
+                    captureDateTime: parsedDate,
+                    imageUrl,
+                    userId,
+                });
 
-            return res.status(200).json({
-                message: "Image uploaded successfully",
-                data: imageDoc,
-                status: "success",
-                code: 200,
-            });
+                return res.status(200).json({
+                    message: "Image uploaded successfully",
+                    data: imageDoc,
+                    status: "success",
+                    code: 200,
+                });
+
+            } catch (dbError) {
+                log.error("Image Doc. creation failed at mongoDB");
+
+                // Cleanup orphaned image on S3
+                await s3.deleteObject({
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Key: s3Key
+                }).promise();
+
+                return res.status(500).json({
+                    message: "Image upload failed during DB save. Cleanup complete.",
+                    status: "failed",
+                    data: null,
+                    code: 500,
+                });
+            }
 
         } catch (error) {
             log.error("Error from [Image Service]:", error);

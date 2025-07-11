@@ -14,6 +14,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+// INITIALIZING DATABASE CONNECTION
+require("./configs/db.config");
+
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 app.use(

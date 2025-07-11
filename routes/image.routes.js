@@ -17,7 +17,8 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *     summary: Upload an image with metadata (UTC time required)
  *     description: |
  *       **Important:** Frontend must send `captureDateTime` in **UTC format** (e.g., `"2025-07-10T08:50:32.354Z"`).  
- *       This value should reflect **Indian Standard Time** converted to UTC.
+ *       This value should reflect **Indian Standard Time** converted to UTC.  
+ *       **Location** must be a string in the format `"longitude,latitude"` (e.g., `"75.8577,22.7196"` for Indore).
  *     tags: [Image]
  *     security:
  *       - bearerAuth: []
@@ -34,7 +35,8 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *             properties:
  *               location:
  *                 type: string
- *                 example: "Bhopal"
+ *                 description: Coordinates in `"longitude,latitude"` format.
+ *                 example: "75.8577,22.7196"
  *               captureDateTime:
  *                 type: string
  *                 format: date-time
@@ -64,8 +66,16 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *                   type: object
  *                   properties:
  *                     location:
- *                       type: string
- *                       example: Bhopal
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           example: Point
+ *                         coordinates:
+ *                           type: array
+ *                           items:
+ *                             type: number
+ *                           example: [75.8577, 22.7196]
  *                     captureDateTime:
  *                       type: string
  *                       format: date-time
@@ -108,7 +118,7 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *                       type: integer
  *                       example: 0
  *       400:
- *         description: Missing fields or invalid datetime
+ *         description: Missing fields or invalid datetime/location
  *       401:
  *         description: Unauthorized
  *       500:
@@ -121,8 +131,9 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *   get:
  *     summary: Get all uploaded images sorted by capture date
  *     description: |
- *       Returns all uploaded images for the authenticated user.
- *       Frontend should convert `captureDateTime` from UTC to IST for display.
+ *       Returns all uploaded images for the authenticated user.  
+ *       **Note:** `captureDateTime` is stored in UTC. Frontend should convert it to IST for display.  
+ *       The `location` field is returned in GeoJSON format: `{ type: "Point", coordinates: [longitude, latitude] }`.
  *     tags: [Image]
  *     security:
  *       - bearerAuth: []
@@ -136,23 +147,27 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *               status: success
  *               code: 200
  *               data:
- *                 - _id: "64f8b3e4c68a4b4e9b9c218a"
- *                   location: "Bhopal"
- *                   captureDateTime: "2025-07-10T08:50:32.354Z"
- *                   status: "In-Progress"
+ *                 - _id: "6870b2932d8cd223c1266fed"
+ *                   location:
+ *                     type: Point
+ *                     coordinates: [75.8577, 22.7196]
+ *                   captureDateTime: "2025-07-11T06:42:11.450Z"
+ *                   status: In-Progress
  *                   metricSummary:
- *                     OSA: 23
- *                     Sos: 15
- *                     PGC: 31
- *                   imageUrl: "https://skool-search.s3.ap-south-1.amazonaws.com/images/1752145888556_Elephant.jfif"
+ *                     OSA: 0
+ *                     Sos: 0
+ *                     PGC: 0
+ *                   imageUrl: "https://skool-search.s3.ap-south-1.amazonaws.com/images/1752216211453_family.jfif"
  *                   belongsTo: "686f9907118f04da978015dd"
- *                   createdAt: "2025-07-10T11:11:28.781Z"
- *                   updatedAt: "2025-07-10T11:11:28.781Z"
+ *                   createdAt: "2025-07-11T06:43:31.679Z"
+ *                   updatedAt: "2025-07-11T06:43:31.679Z"
  *                   __v: 0
  *                 - _id: "64f8b5e4c68a4b4e9b9c218b"
- *                   location: "Pune"
+ *                   location:
+ *                     type: Point
+ *                     coordinates: [73.8567, 18.5204]
  *                   captureDateTime: "2025-07-09T17:40:00.000Z"
- *                   status: "In-Progress"
+ *                   status: In-Progress
  *                   metricSummary:
  *                     OSA: 0
  *                     Sos: 0
@@ -163,9 +178,11 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *                   updatedAt: "2025-07-09T18:05:44.129Z"
  *                   __v: 0
  *                 - _id: "64f8b9e4c68a4b4e9b9c218c"
- *                   location: "Delhi"
+ *                   location:
+ *                     type: Point
+ *                     coordinates: [77.1025, 28.7041]
  *                   captureDateTime: "2025-07-08T15:25:14.000Z"
- *                   status: "Processed"
+ *                   status: Processed
  *                   metricSummary:
  *                     OSA: 55
  *                     Sos: 21
