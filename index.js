@@ -48,7 +48,7 @@ app.use((req, res, next) => {
 
 app.use("/api/auth", AuthRouter);
 app.use("/api/user", UserRouter);
-app.use("/api/image", ImageRouter);
+app.use("/api/images", ImageRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 

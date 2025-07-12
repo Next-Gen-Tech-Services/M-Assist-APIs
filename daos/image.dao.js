@@ -6,10 +6,14 @@ class ImageDAO {
   async uploadImageDetails(data) {
     try {
       const newImage = new Image({
-        location: data.location,            // GeoJSON Point
+        userId: data.userId,
+        shelfId: data.shelfId || null, // Optional; can be set later
+        location: data.location,       // GeoJSON Point
         captureDateTime: data.captureDateTime,
-        imageUrl: data.imageUrl,
-        belongsTo: data.userId,
+        imageUrl: data.imageUrl || "", // In case of failed upload
+        imageSizeInKB: data.imageSizeInKB || 0,
+        fileHash: data.fileHash,
+        status: data.status || "PENDING", // Default if not passed
       });
 
       const result = await newImage.save();

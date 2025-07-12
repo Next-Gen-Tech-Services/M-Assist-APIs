@@ -1,7 +1,9 @@
-const IN_PROGRESS = "In-Progress";
-const PROCESSED = "Processed";
+const UPLOADED = "uploaded";
+const PENDING = "pending";
+const FAILED = "failed";
 
 module.exports = {
-    IN_PROGRESS,
-    PROCESSED
+    UPLOADED,
+    PENDING,
+    FAILED
 }

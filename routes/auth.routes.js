@@ -3,16 +3,61 @@ const authController = require("../controllers/auth.controller");
 
 /**
  * @swagger
- * tags:
- *   name: Auth
- *   description: User authentication APIs
+ * /api/auth/signup:
+ *   post:
+ *     summary: Register a new user with profile picture
+ *     tags: [Auth]
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - mobileNumber
+ *             properties:
+ *               profilePic:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile picture file to upload
+ *               fullName:
+ *                 type: string
+ *                 example: Aakash Tamboli
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: aakash@example.com
+ *               mobileNumber:
+ *                 type: string
+ *                 example: "9876543210"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: StrongPassword123
+ *               role:
+ *                 type: string
+ *                 enum: [field_user, admin]
+ *                 example: field_user
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Validation error or missing fields
+ *       409:
+ *         description: User already exists
+ *       500:
+ *         description: Internal server error
  */
 
 /**
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login user with mobile number and password
+ *     summary: Login using email and password
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -21,54 +66,26 @@ const authController = require("../controllers/auth.controller");
  *           schema:
  *             type: object
  *             required:
- *               - mobileNumber
+ *               - email
  *               - password
  *             properties:
- *               mobileNumber:
+ *               email:
  *                 type: string
- *                 example: "9876543210"
+ *                 format: email
+ *                 example: aakash@example.com
  *               password:
  *                 type: string
- *                 example: "securePassword123"
+ *                 format: password
+ *                 example: StrongPassword123
  *     responses:
  *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 status:
- *                   type: string
- *                   example: success
- *                 code:
- *                   type: integer
- *                   example: 200
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       type: object
- *                       properties:
- *                         profilePic:
- *                           type: string
- *                           example: "https://example.com/profile.jpg"
- *                         fullName:
- *                           type: string
- *                           example: "Aakash Mehta"
- *                         userId:
- *                           type: string
- *                     token:
- *                       type: string
- *                       example: "eyJhbGciOiJIUzI1NiIsInR..."
+ *         description: User logged in successfully
  *       400:
- *         description: Missing mobile number or password
+ *         description: Missing or invalid credentials
  *       401:
  *         description: Invalid password
  *       404:
- *         description: Account not found
+ *         description: User not found
  *       500:
  *         description: Internal server error
  */
