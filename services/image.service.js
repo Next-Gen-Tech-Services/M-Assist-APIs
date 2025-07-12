@@ -251,6 +251,7 @@ class ImageService {
             });
         }
     }
+    /*
     async getAllImagesService(req, res) {
         try {
             const images = await imageDAO.getAllImagesSortedByDate();
@@ -328,6 +329,7 @@ class ImageService {
             });
         }
     }
+    */
 }
 
 module.exports = new ImageService();
