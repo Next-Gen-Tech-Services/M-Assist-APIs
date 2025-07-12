@@ -1,69 +1,54 @@
 const mongoose = require("mongoose");
-const { IN_PROGRESS, PROCESSED } = require("../utils/constants/status.constant");
+const { UPLOADED, PENDING, FAILED } = require("../utils/constants/status.constant");
 
 const imageSchema = mongoose.Schema(
     {
-        name: {
-            type: String,
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        },
+        shelfId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Shelf"
+        },
+        captureDateTime: {
+            type: Date,
+            required: true
+        },
+        imageSizeInKB: {
+            type: Number
         },
         location: {
             type: {
                 type: String,
-                enum: ['Point'],
+                enum: ["Point"],
                 required: true,
-                default: 'Point'
+                default: "Point"
             },
             coordinates: {
                 type: [Number], // [longitude, latitude]
                 required: true
             }
         },
-        captureDateTime: {
-            type: Date,
-            required: true
-        },
         status: {
             type: String,
-            enum: [IN_PROGRESS, PROCESSED],
-            default: IN_PROGRESS
-        },
-        metricSummary: {
-            OSA: {
-                type: Number,
-                min: 0,
-                max: 100,
-                default: 0,
-                required: true
-            },
-            Sos: {
-                type: Number,
-                min: 0,
-                max: 100,
-                default: 0,
-                required: true
-            },
-            PGC: {
-                type: Number,
-                min: 0,
-                max: 100,
-                default: 0,
-                required: true
-            }
+            enum: [UPLOADED, PENDING, FAILED],
+            default: PENDING
         },
         imageUrl: {
             type: String,
             required: true
         },
-        belongsTo: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
+        fileHash: {
+            type: String,
+            required: true,
+            index: true
         }
     },
     { timestamps: true }
 );
 
-// This following line will create index, So that if we give feature of find nearby stores around 2km then it will quickly fetch the data from mongoDB.
-// Add geospatial index
-imageSchema.index({ location: '2dsphere' });
+// Add geospatial index for location-based queries
+imageSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Image", imageSchema);
