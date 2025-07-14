@@ -9,6 +9,14 @@ class ImageController {
       throw error;
     }
   }
+  async syncOfflineUpload(req, res) {
+    try {
+      const result = await imageService.syncOfflineUploadService(req, res);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
   async getAllImages(req, res) {
     try {
       const result = await imageService.getAllImagesService(req, res);
