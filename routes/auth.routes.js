@@ -1,64 +1,26 @@
 const router = require("express").Router();
 const authController = require("../controllers/auth.controller");
 
-/**
- * @swagger
- * /api/auth/signup:
- *   post:
- *     summary: Register a new user with profile picture
- *     tags: [Auth]
- *     consumes:
- *       - multipart/form-data
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - mobileNumber
- *             properties:
- *               profilePic:
- *                 type: string
- *                 format: binary
- *                 description: Profile picture file to upload
- *               fullName:
- *                 type: string
- *                 example: Aakash Tamboli
- *               email:
- *                 type: string
- *                 format: email
- *                 example: aakash@example.com
- *               mobileNumber:
- *                 type: string
- *                 example: "9876543210"
- *               password:
- *                 type: string
- *                 format: password
- *                 example: StrongPassword123
- *               role:
- *                 type: string
- *                 enum: [field_user, admin]
- *                 example: field_user
- *     responses:
- *       201:
- *         description: User created successfully
- *       400:
- *         description: Validation error or missing fields
- *       409:
- *         description: User already exists
- *       500:
- *         description: Internal server error
- */
+// for testing and consistency only purpose
+router.post("/signup", async (req, res) => {
+  try {
+    const result = await authController.signup(req, res);
+    return result;
+  } catch (error) {
+    log.error("Internal Server Error: ", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 /**
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login using email and password
- *     tags: [Auth]
+ *     tags:
+ *       - Auth
+ *     summary: User Login
+ *     description: Authenticates a user using email and password and returns a JWT token on success.
  *     requestBody:
  *       required: true
  *       content:
@@ -72,34 +34,124 @@ const authController = require("../controllers/auth.controller");
  *               email:
  *                 type: string
  *                 format: email
- *                 example: aakash@example.com
+ *                 example: user@example.com
  *               password:
  *                 type: string
- *                 format: password
- *                 example: StrongPassword123
+ *                 example: MySecurePassword123
  *     responses:
  *       200:
- *         description: User logged in successfully
+ *         description: User successfully logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User logged in successfully
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         userId:
+ *                           type: string
+ *                           example: "64ec99d4f3dabc0123456789"
+ *                         profilePic:
+ *                           type: string
+ *                           example: "https://s3.amazonaws.com/bucket/user123.jpg"
+ *                         fullName:
+ *                           type: string
+ *                           example: John Doe
+ *                         email:
+ *                           type: string
+ *                           example: user@example.com
+ *                         role:
+ *                           type: string
+ *                           example: creator
+ *                     token:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6...
  *       400:
- *         description: Missing or invalid credentials
+ *         description: Missing or invalid email/password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Email and password are required
+ *                 status:
+ *                   type: string
+ *                   example: failed
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 data:
+ *                   type: "null"
  *       401:
  *         description: Invalid password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid password
+ *                 status:
+ *                   type: string
+ *                   example: unauthorized
+ *                 code:
+ *                   type: integer
+ *                   example: 401
+ *                 data:
+ *                   type: "null"
  *       404:
- *         description: User not found
+ *         description: Account not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Account does not exist
+ *                 status:
+ *                   type: string
+ *                   example: not_found
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 data:
+ *                   type: "null"
  *       500:
  *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 data:
+ *                   type: "null"
  */
-
-// for testing and consistency only purpose
-router.post("/signup", async (req, res) => {
-  try {
-    const result = await authController.signup(req, res);
-    return result;
-  } catch (error) {
-    log.error("Internal Server Error: ", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 
 router.post("/login", async (req, res) => {
   try {

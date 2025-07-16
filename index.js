@@ -7,7 +7,7 @@ const { PORT, SOCKET_PORT } = require("./configs/server.config");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerOptions = require("./configs/swagger.config");
-const { AuthRouter, ImageRouter, UserRouter } = require("./routes/index");
+const { AuthRouter, ImageRouter, UserRouter, ShelfRouter } = require("./routes/index");
 
 const app = express();
 app.use(cors());
@@ -49,6 +49,7 @@ app.use((req, res, next) => {
 app.use("/api/auth", AuthRouter);
 app.use("/api/user", UserRouter);
 app.use("/api/images", ImageRouter);
+app.use("/api/shelf", ShelfRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
