@@ -5,12 +5,12 @@ const { uploadFile } = require("../utils/helpers/files.util");
 
 /**
  * @swagger
- * /api/image/upload:
+ * /api/images/upload:
  *   post:
+ *     tags:
+ *       - Images
  *     summary: Upload shelf images
- *     description: Upload images along with location and capture time. Frontend must send UTC timestamp.
- *     tags:
- *       - Images
+ *     description: Upload up to 20 images with location and timestamp to create a new shelf entry.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -20,117 +20,27 @@ const { uploadFile } = require("../utils/helpers/files.util");
  *           schema:
  *             type: object
  *             required:
+ *               - images
  *               - location
  *               - captureDateTime
- *               - images
  *             properties:
- *               location:
- *                 type: string
- *                 example: "75.8577,22.7196"
- *                 description: "Longitude and Latitude as comma-separated string (lng,lat)"
- *               captureDateTime:
- *                 type: string
- *                 format: date-time
- *                 example: "2024-07-12T07:45:00.000Z"
- *                 description: "UTC format timestamp. Indian time should be converted to UTC on frontend."
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
- *     responses:
- *       200:
- *         description: Images uploaded successfully and shelf created
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 status:
- *                   type: string
- *                 code:
- *                   type: integer
- *                 data:
- *                   type: object
- *                   properties:
- *                     shelfId:
- *                       type: string
- *                     images:
- *                       type: array
- *                       items:
- *                         type: string
- *       400:
- *         description: Missing required fields or bad input
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-
-/**
- * @swagger
- * /api/image/sync-offline-upload:
- *   post:
- *     summary: Sync offline captured shelf images
- *     description: Retry uploading images that failed previously. If already uploaded, they'll be skipped.
- *     tags:
- *       - Images
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - location
- *               - captureDateTime
- *               - images
- *             properties:
  *               location:
  *                 type: string
- *                 example: "75.8577,22.7196"
- *                 description: "Longitude and Latitude as comma-separated string (lng,lat)"
+ *                 example: "77.5946,12.9716"
  *               captureDateTime:
  *                 type: string
  *                 format: date-time
- *                 example: "2024-07-12T07:45:00.000Z"
- *                 description: "UTC format timestamp. Indian time should be converted to UTC on frontend."
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
+ *                 example: "2025-07-16T10:30:00Z"
  *     responses:
  *       200:
- *         description: Images uploaded or skipped. Shelf created or updated.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 status:
- *                   type: string
- *                 code:
- *                   type: integer
- *                 data:
- *                   type: object
- *                   properties:
- *                     shelfId:
- *                       type: string
- *                     images:
- *                       type: array
- *                       items:
- *                         type: string
+ *         description: Upload completed
  *       400:
- *         description: Missing required fields or bad input
- *       401:
- *         description: Unauthorized
+ *         description: Invalid input
  *       500:
  *         description: Internal server error
  */
@@ -147,6 +57,48 @@ router.post("/upload", jwt.authenticateJWT, uploadFile.array("images", 20), asyn
 }
 );
 
+/**
+ * @swagger
+ * /api/images/sync-offline-upload:
+ *   post:
+ *     tags:
+ *       - Images
+ *     summary: Sync offline images
+ *     description: Uploads previously captured images and avoids duplication using hash matching.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - images
+ *               - location
+ *               - captureDateTime
+ *             properties:
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               location:
+ *                 type: string
+ *                 example: "77.5946,12.9716"
+ *               captureDateTime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-07-16T10:30:00Z"
+ *     responses:
+ *       200:
+ *         description: Offline sync completed
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Internal server error
+ */
+
 router.post("/sync-offline-upload", jwt.authenticateJWT, uploadFile.array("images", 20), async (req, res) => {
   try {
     const result = await imageController.syncOfflineUpload(req, res);
@@ -157,21 +109,8 @@ router.post("/sync-offline-upload", jwt.authenticateJWT, uploadFile.array("image
   }
 });
 
-// IMP. Front-end will recieve time in UTC, So front needs to parse to show time in indian format
+
 /*
-// It needs upgradation acc. to Shelf because at the at we display  Shelf(card)
-and each card(Shelf) containing images
-router.get("/getAllImages", jwt.authenticateJWT, async (req, res) => {
-  try {
-    const result = await imageController.getAllImages(req, res);
-    return result;
-  } catch (error) {
-    log.error("Internal Server Error: ", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-
 // similarly here we need to delete the shelf card along with images,
   It will be implement once whole design is ready and front-end integrate APIs.
 router.delete("/deleteImage/:imageId", jwt.authenticateJWT, async (req, res) => {
