@@ -10,8 +10,7 @@ class ShelfDAO {
         try {
             const shelves = await shelfModel.find(filter)
                 .populate("imageUrls") // Populate image documents
-                .populate("userId") // Optional: populate user info
-                .lean();
+                .lean().select(" imgUrls");
 
             return {
                 status: "success",
