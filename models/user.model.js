@@ -31,6 +31,10 @@ const userSchema = mongoose.Schema(
       enum: [FIELD_AGENT, ADMIN],
       default: FIELD_AGENT,
     },
+    resetToken: {
+      type: String,
+      required: false,
+    },
   },
   { timestamps: true } // adds createdAt and updatedAt automatically
 );

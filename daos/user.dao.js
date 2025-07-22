@@ -175,6 +175,89 @@ class UserDao {
     }
   }
 
+  async updateUserByEmail(email, updateData) {
+    try {
+      const result = await User.findOneAndUpdate(
+        { email: email.toLowerCase().trim() },
+        { $set: updateData },
+        { new: true }
+      );
+
+      if (!result) {
+        log.error("Error from [USER DAO]: No user found to update with email:", email);
+        return { status: "fail", code: 404, data: null };
+      }
+
+      console.log("After inserting token: ");
+      console.log(result);
+
+      log.info("User updated successfully by email:", email);
+      return { status: "success", code: 200, data: result };
+    } catch (error) {
+      log.error("Error from [USER DAO]: updateUserByEmail", error);
+      return { status: "error", code: 500, data: null };
+    }
+  }
+
+  async updateUser(data) {
+    try {
+      if (data?.password) {
+        data.password = await hashItem(data.password);
+      }
+      let result;
+      result = await User.findOneAndUpdate({ email: data.email }, data, {
+        new: true,
+      });
+
+      log.info("User saved");
+      if (!result) {
+        log.error("Error from [USER DAO]: User updation error");
+        return {
+          message: "Something went wrong",
+          data: null,
+          status: "fail",
+          code: 201,
+        };
+      } else {
+        return {
+          message: "User updated successfully",
+          data: result,
+          status: "success",
+          code: 200,
+        };
+      }
+    } catch (error) {
+      log.error("Error from [USER DAO]: ", error);
+      throw error;
+    }
+  }
+
+  async getUserByResetToken(resetToken) {
+    try {
+      const userExist = await User.findOne({
+        resetToken,
+      });
+      if (userExist != null) {
+        return {
+          message: "Successfully",
+          status: "success",
+          data: userExist,
+          code: 200,
+        };
+      } else {
+        return {
+          message: "User not found",
+          status: "failed",
+          data: null,
+          code: 201,
+        };
+      }
+    } catch (error) {
+      log.error("Error from [USER DAO]: ", error);
+      throw error;
+    }
+  }
+
 }
 
 module.exports = new UserDao();

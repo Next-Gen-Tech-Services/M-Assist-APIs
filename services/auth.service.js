@@ -50,6 +50,10 @@ class AuthService {
 
       const user = userResponse.data;
 
+      console.log("user provided password: ", password);
+      console.log("hashed password: ", user.password);
+      console.log("compareItems(password, user.password): ", await compareItems(password, user.password));
+
       const isPasswordMatch = await compareItems(password, user.password);
       if (!isPasswordMatch) {
         log.error("Error from [Auth SERVICE]: Invalid password");
@@ -189,6 +193,131 @@ class AuthService {
 
     } catch (error) {
       log.error("[Auth SERVICE]: Signup failed", error);
+      return res.status(500).json({
+        message: "Internal server error",
+        status: "error",
+        code: 500,
+        data: null,
+      });
+    }
+  }
+
+  async forgetPasswordService(req, res) {
+    try {
+      const email = req.body.email?.toLowerCase().trim();
+
+      if (!email) {
+        log.error("Error from [User SERVICE]: Email not provided");
+        return res.status(400).json({
+          message: "Invalid Request: Email is required",
+          status: "failed",
+          data: null,
+          code: 400,
+        });
+      }
+
+      if (!validateEmail(email)) {
+        log.error("Error from [User SERVICE]: Invalid Email Format");
+        return res.status(400).json({
+          message: "Invalid Email Address",
+          status: "failed",
+          data: null,
+          code: 400,
+        });
+      }
+
+      const user = await userDao.getUserByEmail(email);
+
+      if (user.data) {
+        const resetToken = await randomString(25);
+        const updateData = removeNullUndefined({ resetToken });
+
+        await userDao.updateUserByEmail(email, updateData);
+
+        sendMail({
+          email,
+          subject: "Reset your account",
+          template: "resetToken.ejs",
+          data: { email, resetToken },
+        });
+
+        return res.status(200).json({
+          status: "success",
+          code: 200,
+          message: "Please check your email to reset your password",
+        });
+      } else {
+        return res.status(404).json({
+          message: "Account does not exist",
+          status: "fail",
+          code: 404,
+          data: null,
+        });
+      }
+    } catch (error) {
+      log.error("Error from [Auth SERVICE]:", error);
+      return res.status(500).json({
+        message: "Internal Server Error",
+        status: "error",
+        code: 500,
+        data: null,
+      });
+    }
+  }
+
+  async resendEmailService(req, res) {
+    return this.forgetPasswordService(req, res);
+  }
+
+  async resetPasswordService(req, res) {
+    try {
+      const token = req.params.token;
+      const { password } = req.body;
+
+      console.log("token:", token);
+      console.log("password: ", password);
+
+      // Validate input
+      if (!token || !password) {
+        log.error("Error from [User SERVICE]: Invalid Request - Missing token or password");
+        return res.status(400).json({
+          message: "Invalid Request: Token and password are required",
+          status: "failed",
+          data: null,
+          code: 400,
+        });
+      }
+
+      // Get user by reset token
+      const user = await userDao.getUserByResetToken(token);
+
+      if (user.data != null) {
+        // Hash the password before saving
+        const data = {
+          email: user.data.email,
+          password,
+          resetToken: null, // Invalidate token
+        };
+
+        await userDao.updateUser(data);
+
+        return res.status(200).json({
+          status: "success",
+          code: 200,
+          message: "Password changed successfully",
+        });
+
+      } else {
+        return res.status(400).json({
+          message: "Account does not exist or token is invalid",
+          status: "fail",
+          code: 400,
+          data: null,
+        });
+      }
+
+    } catch (error) {
+      log.error("Error from [User SERVICE]:", error);
       return res.status(500).json({
         message: "Internal server error",
         status: "error",

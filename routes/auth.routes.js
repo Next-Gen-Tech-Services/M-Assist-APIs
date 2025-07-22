@@ -152,7 +152,6 @@ router.post("/signup", async (req, res) => {
  *                 data:
  *                   type: "null"
  */
-
 router.post("/login", async (req, res) => {
   try {
     const result = await authController.login(req, res);
@@ -163,5 +162,34 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/forgetPassword", async (req, res) => {
+  try {
+    const result = await authController.forgetPassword(req, res);
+    return result;
+  } catch (error) {
+    log.error("Internal Server Error: ", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.post("/resendEmail", async (req, res) => {
+  try {
+    const result = await authController.resendEmail(req, res);
+    return result;
+  } catch (error) {
+    log.error("Internal Server Error: ", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.put("/resetPassword/:token", async (req, res) => {
+  try {
+    const result = await authController.resetPassword(req, res);
+    return result;
+  } catch (error) {
+    log.error("Internal Server Error: ", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 
 module.exports = router;
