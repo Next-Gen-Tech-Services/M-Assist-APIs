@@ -98,7 +98,11 @@ class ImageService {
             const shelf = await Shelf.create({
                 userId,
                 imageUrls: imageIds,
-                metricSummary: { OSA: 0, SOS: 0, PGC: 0 },
+                metricSummary: {
+                    OSA: "0.00",
+                    SOS: "0.00",
+                    PGC: "0.00"
+                }
             });
 
             // Update shelfId in images
@@ -212,12 +216,17 @@ class ImageService {
             let shelf = await Shelf.findOne({ userId, imageUrls: { $in: imageIds } });
 
             if (!shelf) {
-                // Create a new shelf
-                shelf = await Shelf.create({
+                // Create new Shelf
+                const shelf = await Shelf.create({
                     userId,
                     imageUrls: imageIds,
-                    metricSummary: { OSA: 0, SOS: 0, PGC: 0 },
+                    metricSummary: {
+                        OSA: "0.00",
+                        SOS: "0.00",
+                        PGC: "0.00"
+                    }
                 });
+
             } else {
                 // Merge existing and new image IDs, avoiding duplicates
                 const mergedImageIds = Array.from(new Set([...shelf.imageUrls.map(id => id.toString()), ...imageIds.map(id => id.toString())]));

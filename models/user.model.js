@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { FIELD_AGENT, ADMIN } = require("../utils/constants/user.constant");
+const { FIELD_AGENT, ADMIN, ACTIVE, IN_ACTIVE } = require("../utils/constants/user.constant");
 
 const userSchema = mongoose.Schema(
   {
@@ -34,6 +34,11 @@ const userSchema = mongoose.Schema(
     resetToken: {
       type: String,
       required: false,
+    },
+    status: {
+      type: String,
+      enum: [ACTIVE, IN_ACTIVE],
+      default: ACTIVE,
     },
   },
   { timestamps: true } // adds createdAt and updatedAt automatically

@@ -13,24 +13,24 @@ const shelfSchema = mongoose.Schema({
     }],
     metricSummary: {
         OSA: {
-            type: Number,
+            type: mongoose.Schema.Types.Decimal128,
             min: 0,
             max: 100,
-            default: 0,
+            default: 0.0,
             required: true
         },
         SOS: {
-            type: Number,
+            type: mongoose.Schema.Types.Decimal128,
             min: 0,
             max: 100,
-            default: 0,
+            default: 0.0,
             required: true
         },
         PGC: {
-            type: Number,
+            type: mongoose.Schema.Types.Decimal128,
             min: 0,
             max: 100,
-            default: 0,
+            default: 0.0,
             required: true
         }
     }
