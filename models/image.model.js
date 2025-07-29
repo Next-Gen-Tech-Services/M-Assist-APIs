@@ -41,7 +41,7 @@ const imageSchema = mongoose.Schema(
         },
         fileHash: {
             type: String,
-            required: true,
+            required: false,
             index: true
         }
     },

@@ -3,6 +3,24 @@ const getNextSequenceValue = require("../utils/helpers/counter.util");
 const log = require("../configs/logger.config");
 const { hashItem } = require("../utils/helpers/bcrypt.util");
 class ImageDAO {
+  async createImage(imageData) {
+    try {
+      const newImage = await Image.create(imageData);
+      return {
+        status: "success",
+        code: 201,
+        data: newImage,
+      };
+    } catch (error) {
+      log.error("Error in [ImageDAO.createImage]:", error);
+      return {
+        status: "error",
+        code: 500,
+        message: "Failed to create image",
+        data: null,
+      };
+    }
+  }
   async uploadImageDetails(data) {
     try {
       const newImage = new Image({

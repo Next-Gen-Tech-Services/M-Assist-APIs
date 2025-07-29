@@ -11,23 +11,47 @@ const { UPLOADED, PENDING, FAILED } = require("../utils/constants/status.constan
 const crypto = require("crypto");
 const Shelf = require("../models/shelf.model"); // adjust path as needed
 const ShelfDao = require("../daos/shelf.dao");
+const shelfDao = require("../daos/shelf.dao");
+
 
 
 class ShelfService {
     async getAllShelevesService(req, res) {
         try {
-            const userId = req.userId;
+            // Step 1: Fetch shelves from DAO
+            const { data: shelves, error } = await shelfDao.getAllShelves();
 
-            const result = await ShelfDao.getAllShelves({ userId });
+            if (error) {
+                return res.status(500).json({
+                    message: "Failed to fetch shelves",
+                    status: "fail",
+                    error,
+                });
+            }
 
-            return res.status(result.code).json(result);
+            // Step 2: Format metrics to "97.00" style strings
+            const formattedShelves = shelves.map((shelf) => ({
+                ...shelf,
+                metricSummary: {
+                    OSA: shelf.metricSummary?.OSA ? Number(shelf.metricSummary.OSA.toString()).toFixed(2) : "0.00",
+                    SOS: shelf.metricSummary?.SOS ? Number(shelf.metricSummary.SOS.toString()).toFixed(2) : "0.00",
+                    PGC: shelf.metricSummary?.PGC ? Number(shelf.metricSummary.PGC.toString()).toFixed(2) : "0.00",
+                },
+            }));
+
+            // Step 3: Return formatted shelves
+            return res.status(200).json({
+                message: "Shelves fetched successfully",
+                status: "success",
+                code: 200,
+                data: formattedShelves,
+            });
         } catch (error) {
-            console.error("ShelfService Error:", error);
+            console.error("Error in getAllShelvesService:", error);
             return res.status(500).json({
-                status: "failed",
-                code: 500,
-                data: null,
-                error: "Internal Server Error"
+                message: "Internal server error",
+                status: "fail",
+                error: error.message,
             });
         }
     }

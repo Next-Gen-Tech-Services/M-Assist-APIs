@@ -15,21 +15,21 @@ const shelfSchema = mongoose.Schema({
         OSA: {
             type: mongoose.Schema.Types.Decimal128,
             min: 0,
-            max: 100,
+            max: 1,
             default: 0.0,
             required: true
         },
         SOS: {
             type: mongoose.Schema.Types.Decimal128,
             min: 0,
-            max: 100,
+            max: 1,
             default: 0.0,
             required: true
         },
         PGC: {
             type: mongoose.Schema.Types.Decimal128,
             min: 0,
-            max: 100,
+            max: 1,
             default: 0.0,
             required: true
         }

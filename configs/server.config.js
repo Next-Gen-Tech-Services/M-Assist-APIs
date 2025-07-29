@@ -13,6 +13,7 @@ const MAIL_PASSWORD = process.env.SMTP_PASSWORD;
 const MAIL_PORT = process.env.SMTP_PORT;
 const MAIL_HOST = process.env.SMTP_HOST;
 const MAIL_NOREPLAY = process.env.MAIL_NOREPLAY;
+const EXTERNAL_IMAGE_API = process.env.EXTERNAL_IMAGE_API;
 
 module.exports = {
   PORT,
@@ -27,5 +28,6 @@ module.exports = {
   MAIL_PASSWORD,
   MAIL_PORT,
   MAIL_HOST,
-  MAIL_NOREPLAY
+  MAIL_NOREPLAY,
+  EXTERNAL_IMAGE_API
 };
