@@ -1,0 +1,632 @@
+{
+	"info": {
+		"_postman_id": "4b64943f-d03d-44c7-a450-ed677144866c",
+		"name": "M-Assists",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46616190",
+		"_collection_link": "https://aakash-7055253.postman.co/workspace/Aakash's-Workspace~e40c0234-d181-4bb2-8743-b21fb93a4341/collection/46616190-4b64943f-d03d-44c7-a450-ed677144866c?action=share&source=collection_link&creator=46616190"
+	},
+	"item": [
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "dashboard",
+					"item": [
+						{
+							"name": "dashboard",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjUzOTQ3Njk4MDAzMmE2NjcxZTgiLCJpYXQiOjE3NTMzNTMwMzMsImV4cCI6MTc1NTk0NTAzM30.NSc3SOdHdUOswkNbbpryzo9A1rFMg3552EvqWN0HQW8",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "localhost:3001/api/admin/dashboard",
+									"host": [
+										"localhost"
+									],
+									"port": "3001",
+									"path": [
+										"api",
+										"admin",
+										"dashboard"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "getAllSheleves",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjUzOTQ3Njk4MDAzMmE2NjcxZTgiLCJpYXQiOjE3NTM3MDM4MjgsImV4cCI6MTc1NjI5NTgyOH0.YQsjPDEcP1LgwdOkpOLjYKdqBLpLE4FmB60ocsTo9b0",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "localhost:3001/api/admin/get-all-sheleves",
+									"host": [
+										"localhost"
+									],
+									"port": "3001",
+									"path": [
+										"api",
+										"admin",
+										"get-all-sheleves"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"aakashnextgen719@gmail.com\",\r\n    \"password\": \"12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{localUrl}}/api/auth/login",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "forgot password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"aakashnextgen719@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:3001/api/auth/forgetPassword",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"auth",
+								"forgetPassword"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resendEmail",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"aakashnextgen719@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:3001/api/auth/resendEmail",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"auth",
+								"resendEmail"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllUsers",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjUzOTQ3Njk4MDAzMmE2NjcxZTgiLCJpYXQiOjE3NTM3MDYwNDksImV4cCI6MTc1NjI5ODA0OX0.5tRylojpdkN1HwOQKLn2jjvudgo8Db5BCwPV-YmV8tE",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{localUrl}}/api/admin/get-all-users",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"get-all-users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "reset password",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"password\": \"12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3001/api/auth/resetPassword/pJVrYtH15nnS5aXfaUyjavPWY",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"auth",
+								"resetPassword",
+								"pJVrYtH15nnS5aXfaUyjavPWY"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Field Agent",
+			"item": [
+				{
+					"name": "signup",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"fullName\": \"Teesha Gupta\",\r\n    \"email\": \"ngtsteesha@gmail.com\",\r\n    \"mobileNumber\": \"8965896286\",\r\n    \"password\": \"12345\",\r\n    \"role\": \"ADMIN\"\r\n\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:3001/api/auth/signup",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"auth",
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "login",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"ankit@gmail.com\",\r\n    \"password\": \"12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:3001/api/auth/login",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllDetails",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkxMzkzN2I4N2JlMzg2ZWE5NWYiLCJpYXQiOjE3NTM3OTIxNTQsImV4cCI6MTc1NjM4NDE1NH0.EqVgbB46EBWNWzP7Rm1_4NBo0ubFUMvn1xR18cMi-JA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:3001/api/user/getAllDetails",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"api",
+								"user",
+								"getAllDetails"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllSheleves",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkxMzkzN2I4N2JlMzg2ZWE5NWYiLCJpYXQiOjE3NTM3OTIxNTQsImV4cCI6MTc1NjM4NDE1NH0.EqVgbB46EBWNWzP7Rm1_4NBo0ubFUMvn1xR18cMi-JA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{localUrl}}/api/shelf/getAllSheleves",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"shelf",
+								"getAllSheleves"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploadShelf with images",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkxMzkzN2I4N2JlMzg2ZWE5NWYiLCJpYXQiOjE3NTM3ODA1ODIsImV4cCI6MTc1NjM3MjU4Mn0.dKOUDwDGw0GQjLoZxN1qOWfpJKDI0hd0TyIHgBojWgY",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "location",
+									"value": "75.8577, 22.7196",
+									"type": "text"
+								},
+								{
+									"key": "captureDateTime",
+									"value": "2025-07-18T09:42:57.920Z",
+									"type": "text"
+								},
+								{
+									"key": "images",
+									"type": "file",
+									"src": "/C:/Users/Aakash/Downloads/shelf-3.jpeg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{localUrl}}/api/images/upload",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"images",
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateUserProfile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkzYjkzN2I4N2JlMzg2ZWE5NjMiLCJpYXQiOjE3NTIyMzUzMzQsImV4cCI6MTc1NDgyNzMzNH0.S2BLUF-XndbjTW2wu8GS6ipI6r6daTHbW7lzj9OtKgk",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "fullName",
+									"value": "Aakash Tamboli",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "gautam@gamail.com",
+									"type": "text"
+								},
+								{
+									"key": "profilePic",
+									"type": "file",
+									"src": "/C:/Users/Aakash/Downloads/Ankir-Sir-Pic.jfif"
+								}
+							]
+						},
+						"url": {
+							"raw": "localhost:3000/api/user/updateUser",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"user",
+								"updateUser"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete Shelf with images",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkxMzkzN2I4N2JlMzg2ZWE5NWYiLCJpYXQiOjE3NTM3OTIyNTQsImV4cCI6MTc1NjM4NDI1NH0.HUDariVe8tklU_aJWWpJFk9p8LrGi6P8FM5e5crSBwg",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{localUrl}}/api/shelf/6888be37da7d9cc56b020d1b",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"shelf",
+								"6888be37da7d9cc56b020d1b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Retry/Upload Offline Images",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODcwZjkxMzkzN2I4N2JlMzg2ZWE5NWYiLCJpYXQiOjE3NTM3ODk3MTUsImV4cCI6MTc1NjM4MTcxNX0.OdxMQeioD7irNmDYa8QiU6k0IVSQDe-ZrLhtNpshOJs",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "location",
+									"value": "75.8577, 22.7196",
+									"type": "text"
+								},
+								{
+									"key": "captureDateTime",
+									"value": "2025-07-12T09:42:57.920Z",
+									"type": "text"
+								},
+								{
+									"key": "images",
+									"type": "file",
+									"src": "/C:/Users/Aakash/Downloads/shelf-6.jpeg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{localUrl}}/api/images/sync-offline-upload",
+							"host": [
+								"{{localUrl}}"
+							],
+							"path": [
+								"api",
+								"images",
+								"sync-offline-upload"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "M.L APIs",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/C:/Users/Aakash/Downloads/shelf-3.jpeg"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://3.108.115.169/analyze-shelf",
+					"protocol": "http",
+					"host": [
+						"3",
+						"108",
+						"115",
+						"169"
+					],
+					"path": [
+						"analyze-shelf"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
