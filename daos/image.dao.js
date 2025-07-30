@@ -75,6 +75,15 @@ class ImageDAO {
       throw error;
     }
   }
+  async getAllImagesWithShelfAndUser() {
+    try {
+      const images = await Image.find({}).sort({ captureDateTime: -1, createdAt: -1 }).populate({ path: 'userId', select: 'fullName' }).populate({ path: 'shelfId', select: 'metricSummary' });
+      return images;
+    } catch (error) {
+      log.error("Error from [ImageDAO - getAllImagesWithShelfAndUser]:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new ImageDAO();

@@ -14,6 +14,8 @@ const Shelf = require("../models/shelf.model"); // adjust path as needed
 const adminDao = require("../daos/admin.dao");
 const { ACTIVE, IN_ACTIVE } = require("../utils/constants/user.constant");
 const imageDao = require("../daos/image.dao");
+const userModel = require("../models/user.model");
+const shelfModel = require("../models/shelf.model");
 
 class AdminService {
     async dashboardService(req, res) {
@@ -297,13 +299,39 @@ class AdminService {
     }
     async getAllImagesService(req, res) {
         try {
-            const images = await imageDao.getAllImagesSortedByDate();
+            const images = await imageDao.getAllImagesWithShelfAndUser();
+
+            const enrichedImages = images.map((img) => {
+                const uploadedBy = img.userId?.fullName || "Unknown User";
+                const coordinates = img.location?.coordinates || [];
+                const storeName = coordinates.length === 2
+                    ? `${coordinates[1]}, ${coordinates[0]}`
+                    : "Unknown Location";
+
+                const uploadedDate = img.captureDateTime || img.createdAt;
+
+                const metrics = img.shelfId?.metricSummary || {};
+                const OSA = metrics.OSA ? parseFloat(metrics.OSA) : 0.0;
+                const SOS = metrics.SOS ? parseFloat(metrics.SOS) : 0.0;
+                const PGC = metrics.PGC ? parseFloat(metrics.PGC) : 0.0;
+
+                return {
+                    shelfId: img.shelfId?._id || null,
+                    imageUrl: img.imageUrl,
+                    uploadedBy,
+                    storeName,
+                    uploadedDate,
+                    OSA,
+                    SOS,
+                    PGC,
+                };
+            });
 
             return res.status(200).json({
-                message: images.length ? "Images retrieved successfully" : "No images found",
+                message: enrichedImages.length ? "Images retrieved successfully" : "No images found",
                 status: "success",
                 code: 200,
-                data: images
+                data: enrichedImages,
             });
         } catch (error) {
             log.error("Error in [getAllImagesService]:", error);
@@ -311,7 +339,7 @@ class AdminService {
                 message: "Something went wrong while fetching images",
                 status: "error",
                 code: 500,
-                data: null
+                data: null,
             });
         }
     }
