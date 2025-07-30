@@ -25,6 +25,30 @@ class AdminController {
             throw error;
         }
     }
+    async toggleUserStatus(req, res) {
+        try {
+            const result = await adminService.toggleUserStatusService(req, res);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+    async deleteUser(req, res) {
+        try {
+            const result = await adminService.deleteUserService(req, res);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+    async getAllImages(req, res) {
+        try {
+            const result = await adminService.getAllImagesService(req, res);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
 }
 
 module.exports = new AdminController();

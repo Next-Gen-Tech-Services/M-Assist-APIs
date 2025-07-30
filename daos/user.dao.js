@@ -258,6 +258,36 @@ class UserDao {
     }
   }
 
+  async deleteUserById(userId) {
+    try {
+      const deletedUser = await User.findByIdAndDelete(userId);
+
+      if (!deletedUser) {
+        return {
+          message: "User not found",
+          status: "fail",
+          data: null,
+          code: 404,
+        };
+      }
+
+      return {
+        message: "User deleted successfully",
+        status: "success",
+        data: deletedUser,
+        code: 200,
+      };
+    } catch (error) {
+      log.error("Error from [USER DAO - deleteUserById]:", error);
+      return {
+        message: "Internal server error",
+        status: "error",
+        data: null,
+        code: 500,
+      };
+    }
+  }
+
 }
 
 module.exports = new UserDao();

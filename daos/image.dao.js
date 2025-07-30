@@ -66,6 +66,15 @@ class ImageDAO {
       throw error;
     }
   }
+  async hasImagesByUserId(userId) {
+    try {
+      const count = await Image.countDocuments({ userId });
+      return count > 0;
+    } catch (error) {
+      log.error("Error from [ImageDAO - hasImagesByUserId]:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new ImageDAO();

@@ -59,11 +59,10 @@
                       border-bottom: 1px solid #cecece;
                       width: 100px;"></span>
 
-                    <% 
-                      const baseUrl = process.env.NODE_ENV === 'development'
-                        ? 'http://localhost:3001/api/auth/resetPassword'
-                        : 'https://your-live-domain.com/resetPassword';
-                      const resetLink = `${baseUrl}/${resetToken}`;
+                    <%
+                        const baseUrl = process.env.NODE_ENV === 'development'
+                        ? process.env.CLIENT_DEVELOPMENT_URI : process.env.CLIENT_PRODUCTION_URI;
+                        const resetLink = `${baseUrl}?token=${resetToken}`;
                     %>
 
                     <p style="color: #455056; font-size: 18px; line-height: 20px; margin: 0; font-weight: 500;">

@@ -8,7 +8,7 @@ const {
   randomString,
 } = require("../utils/helpers/common.util");
 const { sendMail } = require("../utils/helpers/email.util");
-const { FIELD_AGENT } = require("../utils/constants/user.constant");
+const { FIELD_AGENT, IN_ACTIVE } = require("../utils/constants/user.constant");
 
 class AuthService {
   async loginService(req, res) {
@@ -49,6 +49,15 @@ class AuthService {
       }
 
       const user = userResponse.data;
+
+      if (user.status === IN_ACTIVE) {
+        return res.status(403).json({
+          message: "Your account is inactive. Please contact M-Assists Admin.",
+          status: "fail",
+          code: 403,
+          data: null,
+        });
+      }
 
       console.log("user provided password: ", password);
       console.log("hashed password: ", user.password);
@@ -229,6 +238,15 @@ class AuthService {
       const user = await userDao.getUserByEmail(email);
 
       if (user.data) {
+        if (user.data.status === IN_ACTIVE) {
+          log.warn("Inactive user attempted password reset:", email);
+          return res.status(403).json({
+            message: "Your account is inactive. Please contact M-Assists Admin.",
+            status: "fail",
+            data: null,
+            code: 403,
+          });
+        }
         const resetToken = await randomString(25);
         const updateData = removeNullUndefined({ resetToken });
 
@@ -245,6 +263,11 @@ class AuthService {
           status: "success",
           code: 200,
           message: "Please check your email to reset your password",
+          data: {
+            user: {
+              email: user.data.email
+            }
+          }
         });
       } else {
         return res.status(404).json({

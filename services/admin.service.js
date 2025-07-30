@@ -1,4 +1,5 @@
 const imageDAO = require("../daos/image.dao");
+const userDao = require("../daos/user.dao");
 const Image = require("../models/image.model");
 const { compareItems, hashItem } = require("../utils/helpers/bcrypt.util");
 const log = require("../configs/logger.config");
@@ -11,6 +12,8 @@ const { UPLOADED, PENDING, FAILED } = require("../utils/constants/status.constan
 const crypto = require("crypto");
 const Shelf = require("../models/shelf.model"); // adjust path as needed
 const adminDao = require("../daos/admin.dao");
+const { ACTIVE, IN_ACTIVE } = require("../utils/constants/user.constant");
+const imageDao = require("../daos/image.dao");
 
 class AdminService {
     async dashboardService(req, res) {
@@ -162,6 +165,153 @@ class AdminService {
                 status: "error",
                 code: 500,
                 data: null,
+            });
+        }
+    }
+    async toggleUserStatusService(req, res) {
+        try {
+            console.log("/api/admin/user/toggle-status service invoked");
+            const requesterId = req.userId;
+            const targetUserId = req.params.userId;
+
+            // Step 1: Verify admin
+            const { isAdmin: isAdminUser, error: adminCheckError } = await adminDao.isAdmin(requesterId);
+            if (adminCheckError || !isAdminUser) {
+                return res.status(403).json({
+                    message: "Access denied. Admins only.",
+                    status: "fail",
+                    code: 403,
+                    data: null,
+                });
+            }
+
+            // Step 2: Fetch target user
+            const { data: user, status: userStatus } = await userDao.getUser(targetUserId);
+            if (!user || userStatus === "fail") {
+                return res.status(404).json({
+                    message: "User not found",
+                    status: "fail",
+                    code: 404,
+                    data: null,
+                });
+            }
+
+            // Step 3: Toggle status
+            const newStatus = user.status === ACTIVE ? IN_ACTIVE : ACTIVE;
+
+            // Step 4: Update user status
+            const { data: updatedUser, code, status } = await userDao.updateUserProfile(targetUserId, { status: newStatus });
+
+            if (!updatedUser) {
+                return res.status(500).json({
+                    message: "Failed to update user status",
+                    status: "error",
+                    code: 500,
+                    data: null,
+                });
+            }
+
+            // Step 5: Respond with updated user
+            return res.status(200).json({
+                message: `User status updated to ${newStatus}`,
+                status: "success",
+                code: 200,
+                data: {
+                    user: {
+                        status: newStatus
+                    },
+                }
+            });
+
+        } catch (error) {
+            log.error("Error in [toggleUserStatusService]:", error);
+            return res.status(500).json({
+                message: "Internal Server Error",
+                status: "error",
+                code: 500,
+                data: null,
+            });
+        }
+    }
+    async deleteUserService(req, res) {
+        try {
+            const userIdToDelete = req.params.userId;
+            const requesterId = req.userId;
+
+            // Prevent self-deletion
+            if (userIdToDelete === requesterId) {
+                return res.status(400).json({
+                    message: "You cannot delete your own account.",
+                    status: "fail",
+                    code: 400,
+                    data: null,
+                });
+            }
+
+            // Step 1: Verify admin
+            const { isAdmin: isAdminUser, error: adminCheckError } = await adminDao.isAdmin(requesterId);
+            if (adminCheckError || !isAdminUser) {
+                return res.status(403).json({
+                    message: "Access denied. Admins only.",
+                    status: "fail",
+                    code: 403,
+                    data: null,
+                });
+            }
+
+            // Step 2: Ensure target user exists
+            const { data: userToDelete } = await userDao.getUser(userIdToDelete);
+            if (!userToDelete) {
+                return res.status(404).json({
+                    message: "User to delete not found.",
+                    status: "fail",
+                    code: 404,
+                    data: null,
+                });
+            }
+
+            // Step 3: Check for image references
+            const hasLinkedImages = await imageDao.hasImagesByUserId(userIdToDelete);
+            if (hasLinkedImages) {
+                return res.status(409).json({
+                    message: "This user cannot be deleted. Please remove their associated image submissions first.",
+                    status: "fail",
+                    code: 409,
+                    data: null,
+                });
+            }
+
+            // Step 4: Delete user
+            const { code, status, message, data } = await userDao.deleteUserById(userIdToDelete);
+            return res.status(code).json({ message, status, code, data });
+
+        } catch (error) {
+            log.error("Error from [ADMIN SERVICE - deleteUserService]:", error);
+            return res.status(500).json({
+                message: "Internal server error",
+                status: "error",
+                code: 500,
+                data: null,
+            });
+        }
+    }
+    async getAllImagesService(req, res) {
+        try {
+            const images = await imageDao.getAllImagesSortedByDate();
+
+            return res.status(200).json({
+                message: images.length ? "Images retrieved successfully" : "No images found",
+                status: "success",
+                code: 200,
+                data: images
+            });
+        } catch (error) {
+            log.error("Error in [getAllImagesService]:", error);
+            return res.status(500).json({
+                message: "Something went wrong while fetching images",
+                status: "error",
+                code: 500,
+                data: null
             });
         }
     }
