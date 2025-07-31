@@ -94,11 +94,16 @@ class ImageService {
                 contentType: firstImage.mimetype,
             });
 
-            const mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
-                headers: form.getHeaders(),
-                responseType: "arraybuffer",
-            });
+            try {
+                const mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
+                    headers: form.getHeaders(),
+                    responseType: "arraybuffer",
+                });
 
+            } catch (error) {
+                log.error("Error in hitting M.L API:", error);
+                throw error;
+            }
             const contentType = mlResponse.headers["content-type"];
             const boundaryMatch = contentType.match(/boundary=(.*)$/);
             if (!boundaryMatch) throw new Error("Boundary not found in ML API response");
