@@ -94,8 +94,9 @@ class ImageService {
                 contentType: firstImage.mimetype,
             });
 
+            let mlResponse;
             try {
-                const mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
+                mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
                     headers: form.getHeaders(),
                     responseType: "arraybuffer",
                 });
