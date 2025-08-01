@@ -1,6 +1,8 @@
 const userDAO = require("../daos/user.dao");
 const log = require("../configs/logger.config");
 const { s3 } = require("../configs/aws.config");
+const { validateIndianMobileNumber } = require("../utils/helpers/validator.util");
+const mongoose = require("mongoose");
 
 
 class UserService {
@@ -44,8 +46,16 @@ class UserService {
                 });
             }
 
-            const { fullName, email } = req.body;
+            const { fullName, email, mobileNumber } = req.body;
             const file = req.file;
+
+            if (!fullName && !email && !mobileNumber && !file) {
+                return res.status(400).json({
+                    status: "failed",
+                    message: "No update fields provided",
+                    code: 400,
+                });
+            }
 
             // Check if email already exists (excluding current user)
             if (email) {
@@ -60,10 +70,32 @@ class UserService {
                 }
             }
 
+            if (mobileNumber) {
+                if (!validateIndianMobileNumber(mobileNumber)) {
+                    return res.status(400).json({
+                        status: "failed",
+                        message: "Invalid mobile number format",
+                        code: 400
+                    });
+                }
+
+                const mobileNumberExists = await userDAO.getUserByMobileNumber(mobileNumber);
+
+                if (mobileNumberExists?.data && mobileNumberExists.data._id.toString() !== userId) {
+                    return res.status(400).json({
+                        status: "failed",
+                        message: "Mobile number already in use by another user",
+                        code: 400
+                    });
+                }
+            }
+
+
             // Prepare update data
             const updateData = {};
-            if (name) updateData.name = name.trim();
+            if (fullName) updateData.fullName = fullName.trim();
             if (email) updateData.email = email.toLowerCase().trim();
+            if (mobileNumber) updateData.mobileNumber = mobileNumber;
 
             let uploadedKey = null;
 
