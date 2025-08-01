@@ -335,11 +335,10 @@ class ImageService {
         const { imageId } = req.params;
         const image = await imageDao.getImageById(imageId);
         if (!image) return res.status(404).json({ message: "Image not found" });
-
         res.json({
-            status: image.status,
-            shelfId: image.shelfId || null,
-            imageUrl: image.imageUrl,
+            status: image.data.status,
+            shelfId: image.data.shelfId || null,
+            imageUrl: image.data.imageUrl,
         });
     }
     /*
