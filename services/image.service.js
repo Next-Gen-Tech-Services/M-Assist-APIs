@@ -118,7 +118,7 @@ class ImageService {
                     formData.append("imageUrl", tmpUpload.Location);
 
                     const mlResponse = await axios.post(EXTERNAL_IMAGE_API, formData, {
-                        responseType: "arraybuffer",
+                        responseType: "arraybuffer", // UPDATED: to receive binary
                         headers: formData.getHeaders(),
                     });
 
@@ -127,18 +127,27 @@ class ImageService {
                     if (!boundaryMatch) throw new Error("No boundary in ML API response");
 
                     const boundary = `--${boundaryMatch[1]}`;
-                    const parts = mlResponse.data.toString().split(boundary);
+                    const rawBuffer = Buffer.from(mlResponse.data); // UPDATED: use raw binary buffer
+
+                    // 🔄 UPDATED: split using binary-safe logic
+                    const parts = rawBuffer
+                        .toString("latin1") // ensures 1 byte per character
+                        .split(boundary)
+                        .map(part => Buffer.from(part, "latin1")); // restore to Buffer per part
 
                     let processedImageBuffer = null;
                     let metricsData = null;
 
                     for (const part of parts) {
-                        if (part.includes("Content-Type: image/png")) {
-                            const binaryData = part.split("\r\n\r\n")[1];
-                            processedImageBuffer = Buffer.from(binaryData, "binary");
-                        } else if (part.includes("Content-Type: application/json")) {
-                            const jsonStr = part.split("\r\n\r\n")[1];
-                            metricsData = JSON.parse(jsonStr.trim());
+                        const strPart = part.toString("latin1");
+                        if (strPart.includes("Content-Type: image/png")) {
+                            const headerEnd = strPart.indexOf("\r\n\r\n") + 4;
+                            processedImageBuffer = part.slice(headerEnd).slice(0, -2); // strip trailing \r\n
+                        } else if (strPart.includes("Content-Type: application/json")) {
+                            const headerEnd = strPart.indexOf("\r\n\r\n") + 4;
+                            const jsonBuf = part.slice(headerEnd).slice(0, -2); // remove trailing \r\n
+                            const jsonStr = jsonBuf.toString("utf-8").trim();
+                            metricsData = JSON.parse(jsonStr);
                         }
                     }
 
@@ -166,7 +175,6 @@ class ImageService {
                         metricSummary: shelfMetrics,
                     });
 
-                    // Update image
                     savedImage.imageUrl = processedUpload.Location;
                     savedImage.shelfId = newShelf._id;
                     savedImage.status = UPLOADED;
@@ -175,8 +183,7 @@ class ImageService {
                     console.log("Background processing complete for image:", savedImage._id);
                 } catch (err) {
                     console.error("Background processing failed:", err.message);
-                    // Optionally update image status to FAILED
-                    savedImage.status = "FAILED";
+                    savedImage.status = FAILED;
                     await savedImage.save();
                 }
             });
@@ -237,7 +244,7 @@ class ImageService {
                 },
                 captureDateTime: parsedCaptureDateTime,
                 imageSizeInKB,
-                status: "PROCESSING",
+                status: PROCESSING,
             });
 
             // === Step 3: Respond immediately to client ===
@@ -256,7 +263,7 @@ class ImageService {
                     formData.append("imageUrl", tmpUpload.Location);
 
                     const mlResponse = await axios.post(EXTERNAL_IMAGE_API, formData, {
-                        responseType: "arraybuffer",
+                        responseType: "arraybuffer", // UPDATED: to receive binary
                         headers: formData.getHeaders(),
                     });
 
@@ -265,24 +272,31 @@ class ImageService {
                     if (!boundaryMatch) throw new Error("No boundary in ML API response");
 
                     const boundary = `--${boundaryMatch[1]}`;
-                    const parts = mlResponse.data.toString().split(boundary);
+                    const rawBuffer = Buffer.from(mlResponse.data); // UPDATED: use raw binary buffer
+
+                    // 🔄 UPDATED: split using binary-safe logic
+                    const parts = rawBuffer
+                        .toString("latin1") // ensures 1 byte per character
+                        .split(boundary)
+                        .map(part => Buffer.from(part, "latin1")); // restore to Buffer per part
 
                     let processedImageBuffer = null;
                     let metricsData = null;
 
                     for (const part of parts) {
-                        if (part.includes("Content-Type: image/png")) {
-                            const binaryData = part.split("\r\n\r\n")[1];
-                            processedImageBuffer = Buffer.from(binaryData, "binary");
-                        } else if (part.includes("Content-Type: application/json")) {
-                            const jsonStr = part.split("\r\n\r\n")[1];
-                            metricsData = JSON.parse(jsonStr.trim());
+                        const strPart = part.toString("latin1");
+                        if (strPart.includes("Content-Type: image/png")) {
+                            const headerEnd = strPart.indexOf("\r\n\r\n") + 4;
+                            processedImageBuffer = part.slice(headerEnd).slice(0, -2); // strip trailing \r\n
+                        } else if (strPart.includes("Content-Type: application/json")) {
+                            const headerEnd = strPart.indexOf("\r\n\r\n") + 4;
+                            const jsonBuf = part.slice(headerEnd).slice(0, -2); // remove trailing \r\n
+                            const jsonStr = jsonBuf.toString("utf-8").trim();
+                            metricsData = JSON.parse(jsonStr);
                         }
                     }
 
-                    if (!processedImageBuffer || !metricsData) {
-                        throw new Error("Failed to parse both processed image and metrics JSON");
-                    }
+                    if (!processedImageBuffer || !metricsData) throw new Error("Failed to parse ML API response");
 
                     const processedUpload = await uploadToS3(
                         {
@@ -308,25 +322,19 @@ class ImageService {
 
                     savedImage.imageUrl = processedUpload.Location;
                     savedImage.shelfId = newShelf._id;
-                    savedImage.status = "UPLOADED";
+                    savedImage.status = UPLOADED;
                     await savedImage.save();
 
-                    console.log(`✅ Background processing complete for image: ${savedImage._id}`);
+                    console.log("Background processing complete for image:", savedImage._id);
                 } catch (err) {
-                    console.error(`❌ Error during background processing for image ${savedImage?._id || "unknown"}:`, err?.message || err);
-                    try {
-                        if (savedImage) {
-                            savedImage.status = "FAILED";
-                            await savedImage.save();
-                        }
-                    } catch (saveErr) {
-                        console.error("❌ Failed to update image status to FAILED:", saveErr.message || saveErr);
-                    }
+                    console.error("Background processing failed:", err.message);
+                    savedImage.status = FAILED;
+                    await savedImage.save();
                 }
             });
 
         } catch (error) {
-            console.error("❌ syncOfflineUploadService error:", error.message || error);
+            console.error("Error in uploadService:", error);
             return res.status(500).json({ message: "Internal Server Error", status: "error" });
         }
     }
