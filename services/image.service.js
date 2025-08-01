@@ -7,7 +7,7 @@ const { validateEmail } = require("../utils/helpers/validator.util");
 const { removeNullUndefined, randomString } = require("../utils/helpers/common.util");
 const { sendMail } = require("../utils/helpers/email.util");
 const { s3 } = require("../configs/aws.config");
-const { UPLOADED, PENDING, FAILED } = require("../utils/constants/status.constant");
+const { UPLOADED, PENDING, FAILED, PROCESSING } = require("../utils/constants/status.constant");
 const crypto = require("crypto");
 const Shelf = require("../models/shelf.model"); // adjust path as needed
 const FormData = require("form-data");
@@ -55,7 +55,6 @@ class ImageService {
             const { location, captureDateTime } = req.body;
             const files = req.files;
 
-            // === Initial Checks ===
             if (!userId || !location || !captureDateTime || !files?.length) {
                 return res.status(400).json({
                     message: "userId, location, captureDateTime and at least 1 image file are required",
@@ -63,7 +62,7 @@ class ImageService {
                 });
             }
 
-            // === Parse Location ===
+            // === Parse & Validate Location ===
             const locationParts = location.split(",").map(s => s.trim());
             if (locationParts.length !== 2) {
                 return res.status(400).json({ message: "Invalid location format", status: "fail" });
@@ -86,281 +85,114 @@ class ImageService {
 
             const firstImage = files[0];
 
-            // === STEP 1: Upload first image to S3 tmp folder ===
+            // === Step 1: Upload original image to S3 tmp ===
             const tmpUpload = await uploadToS3(firstImage, "tmp");
 
-            console.log("Image Uploaded Successfully in tmp. Calling ML API with public URL...");
-            console.log("public url: ", tmpUpload.Location);
-
-            // === STEP 2: Call ML API with imageUrl in multipart/form-data ===
-            let mlResponse;
-            try {
-                const formData = new FormData();
-                formData.append("imageUrl", tmpUpload.Location);
-
-                mlResponse = await axios.post(EXTERNAL_IMAGE_API, formData, {
-                    responseType: "arraybuffer",
-                    headers: formData.getHeaders(),
-                });
-            } catch (err) {
-                console.error("Error in ML API call:", err.message);
-                return res.status(500).json({ message: "ML API call failed", status: "error" });
-            }
-
-            // === STEP 3: Parse multipart ML response ===
-            const contentType = mlResponse.headers["content-type"];
-            const boundaryMatch = contentType.match(/boundary=(.*)$/);
-            if (!boundaryMatch) {
-                return res.status(500).json({ message: "No boundary in ML API response", status: "error" });
-            }
-
-            const boundary = `--${boundaryMatch[1]}`;
-            const parts = mlResponse.data.toString().split(boundary);
-
-            let processedImageBuffer = null;
-            let metricsData = null;
-
-            for (const part of parts) {
-                if (part.includes("Content-Type: image/png")) {
-                    const binaryData = part.split("\r\n\r\n")[1];
-                    processedImageBuffer = Buffer.from(binaryData, "binary");
-                } else if (part.includes("Content-Type: application/json")) {
-                    const jsonStr = part.split("\r\n\r\n")[1];
-                    metricsData = JSON.parse(jsonStr.trim());
-                }
-            }
-
-            if (!processedImageBuffer || !metricsData) {
-                return res.status(500).json({ message: "Failed to parse ML API response", status: "error" });
-            }
-
-            // === STEP 4: Upload processed image to S3 ===
-            const processedUpload = await uploadToS3(
-                {
-                    buffer: processedImageBuffer,
-                    mimetype: "image/png",
-                    originalname: "processed.png"
-                },
-                "M-Assists-Processed-Image"
-            );
-
-            // === STEP 5: Save image to DB ===
+            // === Step 2: Save DB entry with status PROCESSING ===
             const imageSizeInKB = Math.ceil(firstImage.size / 1024);
             const { data: savedImage } = await imageDao.createImage({
                 userId,
-                imageUrl: processedUpload.Location,
+                imageUrl: tmpUpload.Location,
                 location: {
                     type: "Point",
                     coordinates: [longitude, latitude],
                 },
                 captureDateTime: parsedCaptureDateTime,
                 imageSizeInKB,
-                status: PENDING,
+                status: PROCESSING,
             });
 
-            // === STEP 6: Save shelf with metrics ===
-            const Decimal128 = mongoose.Types.Decimal128;
-            const shelfMetrics = {
-                OSA: Decimal128.fromString(metricsData.osa.toFixed(2)),
-                SOS: Decimal128.fromString(metricsData.sos.toFixed(2)),
-                PGC: Decimal128.fromString(metricsData.pgc.toFixed(2)),
-            };
-
-            const { data: newShelf } = await shelfDao.createShelf({
-                userId,
-                imageUrls: [savedImage._id],
-                metricSummary: shelfMetrics,
-            });
-
-            // === STEP 7: Update image with shelf ref ===
-            savedImage.shelfId = newShelf._id;
-            savedImage.status = UPLOADED;
-            await savedImage.save();
-
-            return res.status(201).json({
-                message: "Image uploaded and shelf created successfully",
+            // === Step 3: Respond immediately to client ===
+            res.status(202).json({
+                message: "Image uploaded. Processing will continue in background.",
                 status: "success",
                 data: {
-                    shelfId: newShelf._id,
-                    images: [savedImage._id],
-                },
+                    imageId: savedImage._id,
+                }
             });
+
+            // === Phase 2: Background processing ===
+            setImmediate(async () => {
+                try {
+                    const formData = new FormData();
+                    formData.append("imageUrl", tmpUpload.Location);
+
+                    const mlResponse = await axios.post(EXTERNAL_IMAGE_API, formData, {
+                        responseType: "arraybuffer",
+                        headers: formData.getHeaders(),
+                    });
+
+                    const contentType = mlResponse.headers["content-type"];
+                    const boundaryMatch = contentType.match(/boundary=(.*)$/);
+                    if (!boundaryMatch) throw new Error("No boundary in ML API response");
+
+                    const boundary = `--${boundaryMatch[1]}`;
+                    const parts = mlResponse.data.toString().split(boundary);
+
+                    let processedImageBuffer = null;
+                    let metricsData = null;
+
+                    for (const part of parts) {
+                        if (part.includes("Content-Type: image/png")) {
+                            const binaryData = part.split("\r\n\r\n")[1];
+                            processedImageBuffer = Buffer.from(binaryData, "binary");
+                        } else if (part.includes("Content-Type: application/json")) {
+                            const jsonStr = part.split("\r\n\r\n")[1];
+                            metricsData = JSON.parse(jsonStr.trim());
+                        }
+                    }
+
+                    if (!processedImageBuffer || !metricsData) throw new Error("Failed to parse ML API response");
+
+                    const processedUpload = await uploadToS3(
+                        {
+                            buffer: processedImageBuffer,
+                            mimetype: "image/png",
+                            originalname: "processed.png"
+                        },
+                        "M-Assists-Processed-Image"
+                    );
+
+                    const Decimal128 = mongoose.Types.Decimal128;
+                    const shelfMetrics = {
+                        OSA: Decimal128.fromString(metricsData.osa.toFixed(2)),
+                        SOS: Decimal128.fromString(metricsData.sos.toFixed(2)),
+                        PGC: Decimal128.fromString(metricsData.pgc.toFixed(2)),
+                    };
+
+                    const { data: newShelf } = await shelfDao.createShelf({
+                        userId,
+                        imageUrls: [savedImage._id],
+                        metricSummary: shelfMetrics,
+                    });
+
+                    // Update image
+                    savedImage.imageUrl = processedUpload.Location;
+                    savedImage.shelfId = newShelf._id;
+                    savedImage.status = UPLOADED;
+                    await savedImage.save();
+
+                    console.log("Background processing complete for image:", savedImage._id);
+                } catch (err) {
+                    console.error("Background processing failed:", err.message);
+                    // Optionally update image status to FAILED
+                    savedImage.status = "FAILED";
+                    await savedImage.save();
+                }
+            });
+
         } catch (error) {
             console.error("Error in uploadService:", error);
             return res.status(500).json({ message: "Internal Server Error", status: "error" });
         }
     }
 
-    // async uploadService(req, res) {
-    //     try {
-    //         const { userId } = req;
-    //         const { location, captureDateTime } = req.body;
-    //         const files = req.files;
-
-    //         // === Initial Checks ===
-    //         if (!userId || !location || !captureDateTime || !files?.length) {
-    //             return res.status(400).json({
-    //                 message: "userId, location, captureDateTime and at least 1 image file are required",
-    //                 status: "fail",
-    //             });
-    //         }
-
-    //         // === Validate and Parse Location ===
-    //         const locationParts = location.split(",").map(s => s.trim());
-    //         if (locationParts.length !== 2) {
-    //             return res.status(400).json({
-    //                 message: "location must be in 'longitude, latitude' format",
-    //                 status: "fail",
-    //             });
-    //         }
-
-    //         const [longitude, latitude] = locationParts.map(Number);
-    //         if (
-    //             isNaN(longitude) || isNaN(latitude) ||
-    //             longitude < -180 || longitude > 180 ||
-    //             latitude < -90 || latitude > 90
-    //         ) {
-    //             return res.status(400).json({
-    //                 message: "Invalid longitude or latitude values",
-    //                 status: "fail",
-    //             });
-    //         }
-
-    //         // === Validate captureDateTime ===
-    //         const parsedCaptureDateTime = new Date(captureDateTime);
-    //         if (isNaN(parsedCaptureDateTime.getTime())) {
-    //             return res.status(400).json({
-    //                 message: "Invalid captureDateTime value",
-    //                 status: "fail",
-    //             });
-    //         }
-
-    //         const firstImage = files[0];
-
-    //         // === STEP 1: Call ML API ===
-    //         const form = new FormData();
-    //         form.append("file", firstImage.buffer, {
-    //             filename: firstImage.originalname,
-    //             contentType: firstImage.mimetype,
-    //         });
-
-    //         let mlResponse;
-    //         try {
-    //             mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
-    //                 headers: form.getHeaders(),
-    //                 responseType: "arraybuffer",
-    //             });
-
-    //         } catch (error) {
-    //             log.error("Error in hitting M.L API:", error);
-    //             throw error;
-    //         }
-    //         const contentType = mlResponse.headers["content-type"];
-    //         const boundaryMatch = contentType.match(/boundary=(.*)$/);
-    //         if (!boundaryMatch) throw new Error("Boundary not found in ML API response");
-
-    //         const boundaryBuffer = Buffer.from(`--${boundaryMatch[1]}`, "binary");
-    //         const parts = splitBufferByBoundary(mlResponse.data, boundaryBuffer);
-
-    //         let processedImageBuffer = null;
-    //         let metricsData = null;
-
-    //         for (const part of parts) {
-    //             const headerEnd = part.indexOf("\r\n\r\n");
-    //             if (headerEnd === -1) continue;
-
-    //             const headers = part.slice(0, headerEnd).toString("utf-8");
-    //             const body = part.slice(headerEnd + 4);
-
-    //             if (headers.includes("Content-Type: image/png")) {
-    //                 processedImageBuffer = body;
-    //             } else if (headers.includes("Content-Type: application/json")) {
-    //                 const jsonStr = body.toString("utf-8").trim();
-    //                 metricsData = JSON.parse(jsonStr);
-    //             }
-    //         }
-
-    //         if (!processedImageBuffer || !metricsData) {
-    //             return res.status(500).json({
-    //                 message: "Failed to parse ML API response",
-    //                 status: "error",
-    //             });
-    //         }
-
-    //         // === STEP 2: Upload processed image to S3 ===
-    //         const s3Key = `clipverse/images/${uuidv4()}.png`;
-    //         const { Location: imageUrl } = await uploadToS3(processedImageBuffer, s3Key, "image/png");
-
-    //         // === STEP 3: Save image document ===
-    //         const imageSizeInKB = Math.ceil(firstImage.size / 1024);
-    //         const { data: savedImage } = await imageDao.createImage({
-    //             userId,
-    //             imageUrl,
-    //             location: {
-    //                 type: "Point",
-    //                 coordinates: [longitude, latitude],
-    //             },
-    //             captureDateTime: parsedCaptureDateTime,
-    //             imageSizeInKB,
-    //             status: PENDING,
-    //         });
-
-    //         // === STEP 4: Save shelf with metrics ===
-    //         const Decimal128 = mongoose.Types.Decimal128;
-
-    //         console.log("=== Metrics from ML API ===");
-    //         console.log("ML API Raw Response:", metricsData);
-
-    //         const { osa, sos, pgc } = metricsData;
-
-    //         console.log("Parsed metrics:");
-    //         console.log("OSA:", osa);
-    //         console.log("SOS:", sos);
-    //         console.log("PGC :", pgc);
-
-    //         const shelfMetrics = {
-    //             OSA: Decimal128.fromString(osa.toFixed(2)),
-    //             SOS: Decimal128.fromString(sos.toFixed(2)),
-    //             PGC: Decimal128.fromString(pgc.toFixed(2))
-    //         };
-
-    //         console.log("Metrics to be stored in DB:", shelfMetrics);
-
-
-    //         const { data: newShelf } = await shelfDao.createShelf({
-    //             userId,
-    //             imageUrls: [savedImage._id],
-    //             metricSummary: shelfMetrics,
-    //         });
-
-    //         // === STEP 5: Update image with shelf reference ===
-    //         savedImage.shelfId = newShelf._id;
-    //         savedImage.status = UPLOADED;
-    //         await savedImage.save();
-
-    //         return res.status(201).json({
-    //             message: "Image uploaded and shelf created successfully",
-    //             status: "success",
-    //             data: {
-    //                 shelfId: newShelf._id,
-    //                 images: [savedImage._id],
-    //             },
-    //         });
-    //     } catch (error) {
-    //         log.error("Error in uploadSingleImageAndCreateShelf:", error);
-    //         return res.status(500).json({
-    //             message: "Internal server error",
-    //             status: "error",
-    //         });
-    //     }
-    // }
     async syncOfflineUploadService(req, res) {
         try {
             const { userId } = req;
             const { location, captureDateTime } = req.body;
             const files = req.files;
 
-            // === Initial Checks ===
             if (!userId || !location || !captureDateTime || !files?.length) {
                 return res.status(400).json({
                     message: "userId, location, captureDateTime and at least 1 image file are required",
@@ -368,13 +200,10 @@ class ImageService {
                 });
             }
 
-            // === Validate and Parse Location ===
+            // === Parse & Validate Location ===
             const locationParts = location.split(",").map(s => s.trim());
             if (locationParts.length !== 2) {
-                return res.status(400).json({
-                    message: "location must be in 'longitude, latitude' format",
-                    status: "fail",
-                });
+                return res.status(400).json({ message: "Invalid location format", status: "fail" });
             }
 
             const [longitude, latitude] = locationParts.map(Number);
@@ -383,133 +212,135 @@ class ImageService {
                 longitude < -180 || longitude > 180 ||
                 latitude < -90 || latitude > 90
             ) {
-                return res.status(400).json({
-                    message: "Invalid longitude or latitude values",
-                    status: "fail",
-                });
+                return res.status(400).json({ message: "Invalid longitude or latitude", status: "fail" });
             }
 
             // === Validate captureDateTime ===
             const parsedCaptureDateTime = new Date(captureDateTime);
             if (isNaN(parsedCaptureDateTime.getTime())) {
-                return res.status(400).json({
-                    message: "Invalid captureDateTime value",
-                    status: "fail",
-                });
+                return res.status(400).json({ message: "Invalid captureDateTime", status: "fail" });
             }
 
             const firstImage = files[0];
 
-            // === STEP 1: Call ML API ===
-            const form = new FormData();
-            form.append("file", firstImage.buffer, {
-                filename: firstImage.originalname,
-                contentType: firstImage.mimetype,
-            });
+            // === Step 1: Upload original image to S3 tmp ===
+            const tmpUpload = await uploadToS3(firstImage, "tmp");
 
-            const mlResponse = await axios.post(EXTERNAL_IMAGE_API, form, {
-                headers: form.getHeaders(),
-                responseType: "arraybuffer",
-            });
-
-            const contentType = mlResponse.headers["content-type"];
-            const boundaryMatch = contentType.match(/boundary=(.*)$/);
-            if (!boundaryMatch) throw new Error("Boundary not found in ML API response");
-
-            const boundaryBuffer = Buffer.from(`--${boundaryMatch[1]}`, "binary");
-            const parts = splitBufferByBoundary(mlResponse.data, boundaryBuffer);
-
-            let processedImageBuffer = null;
-            let metricsData = null;
-
-            for (const part of parts) {
-                const headerEnd = part.indexOf("\r\n\r\n");
-                if (headerEnd === -1) continue;
-
-                const headers = part.slice(0, headerEnd).toString("utf-8");
-                const body = part.slice(headerEnd + 4);
-
-                if (headers.includes("Content-Type: image/png")) {
-                    processedImageBuffer = body;
-                } else if (headers.includes("Content-Type: application/json")) {
-                    const jsonStr = body.toString("utf-8").trim();
-                    metricsData = JSON.parse(jsonStr);
-                }
-            }
-
-            if (!processedImageBuffer || !metricsData) {
-                return res.status(500).json({
-                    message: "Failed to parse ML API response",
-                    status: "error",
-                });
-            }
-
-            // === STEP 2: Upload processed image to S3 ===
-            const s3Key = `clipverse/images/${uuidv4()}.png`;
-            const { Location: imageUrl } = await uploadToS3(processedImageBuffer, s3Key, "image/png");
-
-            // === STEP 3: Save image document ===
+            // === Step 2: Save DB entry with status PROCESSING ===
             const imageSizeInKB = Math.ceil(firstImage.size / 1024);
             const { data: savedImage } = await imageDao.createImage({
                 userId,
-                imageUrl,
+                imageUrl: tmpUpload.Location,
                 location: {
                     type: "Point",
                     coordinates: [longitude, latitude],
                 },
                 captureDateTime: parsedCaptureDateTime,
                 imageSizeInKB,
-                status: PENDING,
+                status: "PROCESSING",
             });
 
-            // === STEP 4: Save shelf with metrics ===
-            const Decimal128 = mongoose.Types.Decimal128;
-
-            console.log("=== Metrics from ML API ===");
-            console.log("ML API Raw Response:", metricsData);
-
-            const { osa, sos, pgc } = metricsData;
-
-            console.log("Parsed metrics:");
-            console.log("OSA:", osa);
-            console.log("SOS:", sos);
-            console.log("PGC :", pgc);
-
-            const shelfMetrics = {
-                OSA: Decimal128.fromString(osa.toFixed(2)),
-                SOS: Decimal128.fromString(sos.toFixed(2)),
-                PGC: Decimal128.fromString(pgc.toFixed(2))
-            };
-
-            console.log("Metrics to be stored in DB:", shelfMetrics);
-
-
-            const { data: newShelf } = await shelfDao.createShelf({
-                userId,
-                imageUrls: [savedImage._id],
-                metricSummary: shelfMetrics,
-            });
-
-            // === STEP 5: Update image with shelf reference ===
-            savedImage.shelfId = newShelf._id;
-            savedImage.status = UPLOADED;
-            await savedImage.save();
-
-            return res.status(201).json({
-                message: "Image uploaded and shelf created successfully",
+            // === Step 3: Respond immediately to client ===
+            res.status(202).json({
+                message: "Image uploaded. Processing will continue in background.",
                 status: "success",
                 data: {
-                    shelfId: newShelf._id,
-                    images: [savedImage._id],
-                },
+                    imageId: savedImage._id,
+                }
             });
+
+            // === Phase 2: Background processing ===
+            setImmediate(async () => {
+                try {
+                    const formData = new FormData();
+                    formData.append("imageUrl", tmpUpload.Location);
+
+                    const mlResponse = await axios.post(EXTERNAL_IMAGE_API, formData, {
+                        responseType: "arraybuffer",
+                        headers: formData.getHeaders(),
+                    });
+
+                    const contentType = mlResponse.headers["content-type"];
+                    const boundaryMatch = contentType.match(/boundary=(.*)$/);
+                    if (!boundaryMatch) throw new Error("No boundary in ML API response");
+
+                    const boundary = `--${boundaryMatch[1]}`;
+                    const parts = mlResponse.data.toString().split(boundary);
+
+                    let processedImageBuffer = null;
+                    let metricsData = null;
+
+                    for (const part of parts) {
+                        if (part.includes("Content-Type: image/png")) {
+                            const binaryData = part.split("\r\n\r\n")[1];
+                            processedImageBuffer = Buffer.from(binaryData, "binary");
+                        } else if (part.includes("Content-Type: application/json")) {
+                            const jsonStr = part.split("\r\n\r\n")[1];
+                            metricsData = JSON.parse(jsonStr.trim());
+                        }
+                    }
+
+                    if (!processedImageBuffer || !metricsData) {
+                        throw new Error("Failed to parse both processed image and metrics JSON");
+                    }
+
+                    const processedUpload = await uploadToS3(
+                        {
+                            buffer: processedImageBuffer,
+                            mimetype: "image/png",
+                            originalname: "processed.png"
+                        },
+                        "M-Assists-Processed-Image"
+                    );
+
+                    const Decimal128 = mongoose.Types.Decimal128;
+                    const shelfMetrics = {
+                        OSA: Decimal128.fromString(metricsData.osa.toFixed(2)),
+                        SOS: Decimal128.fromString(metricsData.sos.toFixed(2)),
+                        PGC: Decimal128.fromString(metricsData.pgc.toFixed(2)),
+                    };
+
+                    const { data: newShelf } = await shelfDao.createShelf({
+                        userId,
+                        imageUrls: [savedImage._id],
+                        metricSummary: shelfMetrics,
+                    });
+
+                    savedImage.imageUrl = processedUpload.Location;
+                    savedImage.shelfId = newShelf._id;
+                    savedImage.status = "UPLOADED";
+                    await savedImage.save();
+
+                    console.log(`✅ Background processing complete for image: ${savedImage._id}`);
+                } catch (err) {
+                    console.error(`❌ Error during background processing for image ${savedImage?._id || "unknown"}:`, err?.message || err);
+                    try {
+                        if (savedImage) {
+                            savedImage.status = "FAILED";
+                            await savedImage.save();
+                        }
+                    } catch (saveErr) {
+                        console.error("❌ Failed to update image status to FAILED:", saveErr.message || saveErr);
+                    }
+                }
+            });
+
         } catch (error) {
-            log.error("Error in uploadSingleImageAndCreateShelf:", error);
-            return res.status(500).json({
-                message: "Internal server error",
-                status: "error",
-            });
+            console.error("❌ syncOfflineUploadService error:", error.message || error);
+            return res.status(500).json({ message: "Internal Server Error", status: "error" });
         }
+    }
+
+    async imageProcessingStatusService(req, res) {
+        const { imageId } = req.params;
+        const image = await imageDao.getImageById(imageId);
+        if (!image) return res.status(404).json({ message: "Image not found" });
+
+        res.json({
+            status: image.status,
+            shelfId: image.shelfId || null,
+            imageUrl: image.imageUrl,
+        });
     }
     /*
     async getAllImagesService(req, res) {
@@ -591,5 +422,6 @@ class ImageService {
     }
     */
 }
+
 
 module.exports = new ImageService();

@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { UPLOADED, PENDING, FAILED } = require("../utils/constants/status.constant");
+const { UPLOADED, PENDING, FAILED, PROCESSING } = require("../utils/constants/status.constant");
 
 const imageSchema = mongoose.Schema(
     {
@@ -32,7 +32,7 @@ const imageSchema = mongoose.Schema(
         },
         status: {
             type: String,
-            enum: [UPLOADED, PENDING, FAILED],
+            enum: [UPLOADED, PENDING, FAILED, PROCESSING],
             default: PENDING
         },
         imageUrl: {

@@ -33,6 +33,15 @@ class ImageController {
       throw error;
     }
   }
+  async imageProcessingStatus(req, res) {
+    try {
+      const result = await imageService.imageProcessingStatusService(req, res);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
 }
 
 module.exports = new ImageController();

@@ -2,6 +2,7 @@ const Image = require("../models/image.model");
 const getNextSequenceValue = require("../utils/helpers/counter.util");
 const log = require("../configs/logger.config");
 const { hashItem } = require("../utils/helpers/bcrypt.util");
+
 class ImageDAO {
   async createImage(imageData) {
     try {
@@ -82,6 +83,36 @@ class ImageDAO {
     } catch (error) {
       log.error("Error from [ImageDAO - getAllImagesWithShelfAndUser]:", error);
       throw error;
+    }
+  }
+
+  async getImageById(imageId) {
+    try {
+      const image = await Image.findById(imageId);
+
+      if (!image) {
+        return {
+          data: null,
+          message: "Image not found",
+          code: 404,
+          status: "fail"
+        };
+      }
+
+      return {
+        data: image,
+        message: "Image fetched successfully",
+        code: 200,
+        status: "success"
+      };
+    } catch (err) {
+      console.error("Error in getImageById:", err.message || err);
+      return {
+        data: null,
+        message: "Internal server error",
+        code: 500,
+        status: "error"
+      };
     }
   }
 }
